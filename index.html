@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <!--
+    SECURITY NOTE: Content-Security-Policy should be added as an HTTP response
+    header when deploying to a web server (GitHub Pages, Netlify, etc.), not as
+    a meta tag — meta CSP is unreliable on file:// and can block local scripts.
+
+    Recommended HTTP header for deployment:
+    Content-Security-Policy:
+      default-src 'self';
+      script-src 'self' https://cdn.quilljs.com https://cdnjs.cloudflare.com;
+      style-src 'self' 'unsafe-inline' https://cdn.quilljs.com https://cdnjs.cloudflare.com https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:;
+      connect-src 'self' https://api.languagetool.org;
+      img-src 'self' data: blob:;
+      worker-src 'self' blob:;
+      object-src 'none';
+      base-uri 'self';
+      frame-ancestors 'none';
+  -->
+  <title>DocPDF — Online Word Processor</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome (local — works offline) -->
+  <link rel="stylesheet" href="css/vendor/fontawesome/css/all.min.css">
+
+  <!-- Quill.js (local — works offline) -->
+  <link href="css/vendor/quill.snow.css" rel="stylesheet">
+  <script src="js/vendor/quill.min.js"></script>
+
+  <!-- html2pdf.js (local — works offline) -->
+  <script src="js/vendor/html2pdf.bundle.min.js"></script>
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="css/theme.css?v=10">
+  <link rel="stylesheet" href="css/app.css?v=10">
+  <link rel="stylesheet" href="css/editor.css?v=10">
+  <link rel="stylesheet" href="print.css" media="print">
+</head>
+<body>
+
+  <!-- ─── Header ─────────────────────────────────────────── -->
+  <header class="app-header" id="app-header">
+    <div class="header-left">
+      <div class="app-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+        <span>DocPDF</span>
+      </div>
+      <input
+        type="text"
+        id="doc-title"
+        class="doc-title-input"
+        value="Untitled Document"
+        placeholder="Document title..."
+        maxlength="100"
+        spellcheck="false"
+        autocomplete="off"
+      >
+    </div>
+    <div class="header-right">
+      <div class="autosave-indicator" id="autosave-indicator" title="Auto-save status">
+        <span class="indicator-dot" id="indicator-dot"></span>
+        <span class="indicator-text" id="indicator-text">Saved</span>
+      </div>
+      <button class="btn btn-ghost icon-btn" id="theme-toggle" title="Toggle dark/light mode">
+        <i class="fas fa-moon"></i>
+      </button>
+      <button class="btn btn-ghost icon-btn" id="focus-mode-btn" title="Focus mode (F11)">
+        <i class="fas fa-expand"></i>
+      </button>
+      <button class="btn btn-ghost icon-btn" id="stats-panel-btn" title="Document analysis & AI detection">
+        <i class="fas fa-chart-pie"></i>
+      </button>
+      <button class="btn btn-ghost" id="templates-btn" title="Document templates">
+        <i class="fas fa-layer-group"></i> Templates
+      </button>
+      <button class="btn btn-ghost" id="new-doc-btn" title="New document">
+        <i class="fas fa-file"></i> New
+      </button>
+      <!-- Export dropdown -->
+      <div class="export-dropdown-wrapper">
+        <button class="btn btn-primary" id="export-pdf-btn" title="Export to PDF (Ctrl+E)">
+          <i class="fas fa-file-pdf"></i> Export
+          <i class="fas fa-chevron-down export-arrow"></i>
+        </button>
+        <div class="export-menu hidden" id="export-menu">
+          <button class="export-item" id="export-pdf-item">
+            <i class="fas fa-file-pdf"></i> Export as PDF
+          </button>
+          <button class="export-item" id="export-txt-item">
+            <i class="fas fa-file-alt"></i> Export as .txt
+          </button>
+          <button class="export-item" id="export-html-item">
+            <i class="fas fa-code"></i> Export as HTML
+          </button>
+          <div class="export-sep"></div>
+          <button class="export-item" id="print-btn">
+            <i class="fas fa-print"></i> Print (Ctrl+P)
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─── Toolbar ────────────────────────────────────────── -->
+  <div class="toolbar-wrapper" id="toolbar-wrapper">
+    <div class="toolbar" id="toolbar">
+
+      <!-- Style / Heading -->
+      <div class="toolbar-group">
+        <select id="heading-select" class="toolbar-select" title="Text style">
+          <option value="">Normal</option>
+          <option value="1">Heading 1</option>
+          <option value="2">Heading 2</option>
+          <option value="3">Heading 3</option>
+          <option value="4">Heading 4</option>
+        </select>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Font family -->
+      <div class="toolbar-group">
+        <select id="font-select" class="toolbar-select font-name-select" title="Font family">
+          <option value="Inter">Inter</option>
+          <option value="Libre Baskerville">Libre Baskerville</option>
+          <option value="Arial">Arial</option>
+          <option value="Source Code Pro">Source Code Pro</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Verdana">Verdana</option>
+        </select>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Font size -->
+      <div class="toolbar-group">
+        <select id="size-select" class="toolbar-select size-select" title="Font size">
+          <option value="8pt">8</option>
+          <option value="9pt">9</option>
+          <option value="10pt">10</option>
+          <option value="11pt">11</option>
+          <option value="12pt">12</option>
+          <option value="14pt">14</option>
+          <option value="16pt">16</option>
+          <option value="18pt">18</option>
+          <option value="24pt">24</option>
+          <option value="30pt">30</option>
+          <option value="36pt">36</option>
+          <option value="48pt">48</option>
+          <option value="60pt">60</option>
+          <option value="72pt">72</option>
+        </select>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Text formatting -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-bold" title="Bold (Ctrl+B)" data-format="bold">
+          <i class="fas fa-bold"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-italic" title="Italic (Ctrl+I)" data-format="italic">
+          <i class="fas fa-italic"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-underline" title="Underline (Ctrl+U)" data-format="underline">
+          <i class="fas fa-underline"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-strike" title="Strikethrough" data-format="strike">
+          <i class="fas fa-strikethrough"></i>
+        </button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Colors -->
+      <div class="toolbar-group">
+        <div class="color-btn-wrapper" title="Text color">
+          <button class="toolbar-btn color-btn" id="btn-text-color">
+            <i class="fas fa-font"></i>
+            <span class="color-bar" id="text-color-bar" style="background:#000000"></span>
+          </button>
+          <input type="color" id="text-color-input" value="#000000" class="hidden-color-input" title="Pick text color">
+        </div>
+        <div class="color-btn-wrapper" title="Highlight color">
+          <button class="toolbar-btn color-btn" id="btn-bg-color">
+            <i class="fas fa-highlighter"></i>
+            <span class="color-bar" id="bg-color-bar" style="background:#ffff00"></span>
+          </button>
+          <input type="color" id="bg-color-input" value="#ffff00" class="hidden-color-input" title="Pick highlight color">
+        </div>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Alignment -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-align-left" title="Align left" data-align="">
+          <i class="fas fa-align-left"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-align-center" title="Align center" data-align="center">
+          <i class="fas fa-align-center"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-align-right" title="Align right" data-align="right">
+          <i class="fas fa-align-right"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-align-justify" title="Justify" data-align="justify">
+          <i class="fas fa-align-justify"></i>
+        </button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Lists & Indent -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-list-ordered" title="Ordered list" data-format="list" data-value="ordered">
+          <i class="fas fa-list-ol"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-list-bullet" title="Unordered list" data-format="list" data-value="bullet">
+          <i class="fas fa-list-ul"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-indent-out" title="Decrease indent">
+          <i class="fas fa-outdent"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-indent-in" title="Increase indent">
+          <i class="fas fa-indent"></i>
+        </button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Special formats -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-blockquote" title="Blockquote" data-format="blockquote">
+          <i class="fas fa-quote-left"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-code-block" title="Code block" data-format="code-block">
+          <i class="fas fa-code"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-link" title="Insert link (Ctrl+K)">
+          <i class="fas fa-link"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-image" title="Insert image">
+          <i class="fas fa-image"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-hr" title="Insert horizontal line">
+          <i class="fas fa-minus"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-clear-format" title="Clear formatting">
+          <i class="fas fa-remove-format"></i>
+        </button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- History -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-undo" title="Undo (Ctrl+Z)">
+          <i class="fas fa-undo"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-redo" title="Redo (Ctrl+Y)">
+          <i class="fas fa-redo"></i>
+        </button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Find & Replace -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" id="btn-find" title="Find & Replace (Ctrl+F)">
+          <i class="fas fa-search"></i>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─── Find & Replace Bar ──────────────────────────────── -->
+  <div class="find-replace-bar hidden" id="find-replace-bar" aria-hidden="true">
+    <div class="find-group">
+      <i class="fas fa-search find-icon"></i>
+      <input type="text" id="find-input" class="find-input" placeholder="Find…" autocomplete="off" spellcheck="false">
+      <span id="match-counter" class="match-counter"></span>
+      <button class="find-nav-btn" id="find-prev-btn" title="Previous (Shift+Enter)"><i class="fas fa-chevron-up"></i></button>
+      <button class="find-nav-btn" id="find-next-btn" title="Next (Enter)"><i class="fas fa-chevron-down"></i></button>
+    </div>
+    <div class="find-sep"></div>
+    <div class="find-group">
+      <input type="text" id="replace-input" class="find-input" placeholder="Replace with…" autocomplete="off" spellcheck="false">
+      <button class="btn btn-ghost find-action-btn" id="replace-one-btn">Replace</button>
+      <button class="btn btn-ghost find-action-btn" id="replace-all-btn">All</button>
+    </div>
+    <div class="find-sep"></div>
+    <label class="find-label" title="Case sensitive">
+      <input type="checkbox" id="case-sensitive-cb"> Aa
+    </label>
+    <button class="find-close-btn" id="find-close-btn" title="Close (Esc)"><i class="fas fa-times"></i></button>
+  </div>
+
+  <!-- ─── Main Page Area ──────────────────────────────────── -->
+  <main class="page-area" id="page-area">
+    <div class="page-canvas" id="page-canvas">
+      <div id="editor-container">
+        <!-- Quill mounts here -->
+      </div>
+    </div>
+  </main>
+
+  <!-- ─── Document Analysis Panel ────────────────────────────── -->
+  <aside class="stats-panel" id="stats-panel" aria-label="Document Analysis">
+    <div class="panel-header">
+      <span class="panel-title"><i class="fas fa-chart-pie"></i> Analysis</span>
+      <button class="panel-close-btn" id="stats-panel-close" title="Close panel"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="panel-body">
+
+      <!-- AI Detection -->
+      <section class="panel-section">
+        <h4 class="section-title"><i class="fas fa-robot"></i> AI Detection</h4>
+        <div class="ai-score-display">
+          <div class="ai-score-number" id="ai-score-value">—</div>
+          <div class="ai-score-text">
+            <div class="ai-label" id="ai-score-label">Analyzing…</div>
+            <div class="confidence-badge" id="ai-confidence"></div>
+            <div class="ai-source-line" id="ai-source-line"></div>
+          </div>
+        </div>
+        <div class="score-bar-wrap">
+          <div class="score-bar-fill" id="ai-score-bar-fill" style="width:0%"></div>
+        </div>
+        <div class="score-legend">
+          <span style="color:#34a853">■</span> Human &nbsp;
+          <span style="color:#fbbc04">■</span> Mixed &nbsp;
+          <span style="color:#ea4335">■</span> AI
+        </div>
+
+        <!-- Neural (transformer-based) detector — runs automatically on panel open -->
+        <div class="neural-detect" id="neural-detect">
+          <div class="neural-header">
+            <span class="neural-title" title="Runs distilgpt2 locally in your browser to measure token-probability curvature (DetectLLM / Binoculars family). Runs automatically after you open this panel.">
+              <i class="fas fa-brain"></i> Neural model
+              <span class="neural-badge" id="neural-badge">auto</span>
+            </span>
+            <button class="neural-toggle" id="neural-toggle-btn" aria-expanded="false" title="Show technical details">Details</button>
+          </div>
+
+          <!-- First-run banner (hidden after model successfully loads once
+               on this browser; the flag lives in localStorage). -->
+          <div class="neural-firstrun" id="neural-firstrun" hidden>
+            <div class="neural-firstrun-title">First-time setup</div>
+            <div class="neural-firstrun-body">
+              Downloading a small AI-detection model (~40 MB, one time on this device).
+              The panel is already showing results from the fast stylometric detector
+              — the score will update automatically when the neural check finishes.
+            </div>
+            <div class="neural-progress-wrap"><div class="neural-progress-fill" id="neural-progress-fill"></div></div>
+            <div class="neural-progress-text" id="neural-progress-text">Starting…</div>
+          </div>
+
+          <div class="neural-status" id="neural-status">Waiting for text…</div>
+          <div class="neural-metrics" id="neural-metrics" hidden>
+            <div class="neural-row"><span>Perplexity</span><b id="neural-ppl">—</b><span class="neural-hint" id="neural-ppl-hint"></span></div>
+            <div class="neural-row"><span>Mean log-rank</span><b id="neural-rank">—</b><span class="neural-hint" id="neural-rank-hint"></span></div>
+            <div class="neural-row"><span>Neural score</span><b id="neural-score">—</b><span class="neural-hint">0 = human · 100 = AI</span></div>
+            <div class="neural-row"><span>Stylometric</span><b id="neural-stylo">—</b><span class="neural-hint">15 heuristic signals</span></div>
+            <div class="neural-row"><span>Blended</span><b id="neural-blended">—</b><span class="neural-hint">70% neural + 30% stylometric</span></div>
+          </div>
+        </div>
+
+        <div class="signal-list" id="ai-signal-list">
+          <div class="signal-row"><span class="signal-label" title="Human writing mixes long and short sentences (bursty); LLMs write more uniformly.">Sentence uniformity</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-burstiness-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="Shannon entropy of sentence-length buckets — low = predictable = AI-like.">Length entropy</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-lengthEntropy-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="Density of known LLM 'slop' phrases (delve, tapestry, in today's world, etc.).">AI phrase density</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-phraseDensity-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="Passive voice ratio — LLMs use it more often than most humans.">Passive voice</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-passive-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="Hedging phrases (typically, may, could, in most cases…) — LLMs overuse them.">Hedging language</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-hedging-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="First-word diversity across sentences — repetitive starts are LLM-like.">Sentence-start variety</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-startDiversity-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="MTLD lexical diversity — LLMs often cluster in a narrow mid range.">Lexical richness</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-lexicalRichness-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="Em-dashes, semicolons, curly quotes vs. exclamations/questions.">Punctuation fingerprint</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-punctuation-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="High = writes 'do not' instead of 'don't' — formal, AI-like.">Contraction avoidance</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-contractions-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="Function-word ratio — abnormal ratios suggest AI generation.">Function words</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-functionRatio-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="Repeated bigrams/trigrams — LLMs recycle templates more than humans.">Repeated n-grams</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-repeatedNgrams-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="Bullet lists and headings — LLMs love structured breakdowns.">Structural bias</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-structuralBias-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="Very low Flesch ease + long polysyllabic words = formal 'corporate academic' AI register.">Formality / complexity</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-formality-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="Top content words appearing many times — LLMs repeat topic nouns instead of using synonyms/pronouns.">Content-word repetition</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-contentRepeat-fill"></div></div></div>
+          <div class="signal-row"><span class="signal-label" title="Density of abstract nouns ending in -tion, -ment, -ance, -ity, -ness — AI academic signature.">Nominalization</span><div class="signal-bar-wrap"><div class="signal-bar-fill" id="signal-nominalization-fill"></div></div></div>
+        </div>
+        <div class="panel-subsection">
+          <span class="subsection-label">Detected AI phrases</span>
+          <div id="ai-phrases-list" class="phrase-tags"></div>
+        </div>
+      </section>
+
+      <!-- Readability -->
+      <section class="panel-section">
+        <h4 class="section-title"><i class="fas fa-book-open"></i> Readability</h4>
+        <div class="readability-row">
+          <div class="readability-metric">
+            <div class="metric-value" id="readability-ease">—</div>
+            <div class="metric-label">Ease Score</div>
+          </div>
+          <div class="readability-metric">
+            <div class="metric-value" id="readability-grade">—</div>
+            <div class="metric-label" id="readability-grade-label">Grade Level</div>
+          </div>
+        </div>
+        <div class="score-bar-wrap">
+          <div class="score-bar-fill" id="readability-ease-fill" style="width:0%"></div>
+        </div>
+        <div class="metric-sub" id="readability-wps"></div>
+      </section>
+
+      <!-- Statistics -->
+      <section class="panel-section">
+        <h4 class="section-title"><i class="fas fa-info-circle"></i> Statistics</h4>
+        <div class="stats-grid">
+          <div class="stat-cell"><span class="stat-num" id="stat-words">0</span><span class="stat-lbl">Words</span></div>
+          <div class="stat-cell"><span class="stat-num" id="stat-chars">0</span><span class="stat-lbl">Chars</span></div>
+          <div class="stat-cell"><span class="stat-num" id="stat-sentences">0</span><span class="stat-lbl">Sentences</span></div>
+          <div class="stat-cell"><span class="stat-num" id="stat-paragraphs">0</span><span class="stat-lbl">Paragraphs</span></div>
+          <div class="stat-cell"><span class="stat-num" id="stat-reading">—</span><span class="stat-lbl">Read time</span></div>
+          <div class="stat-cell"><span class="stat-num" id="stat-avg-wps">0</span><span class="stat-lbl">Words/sent</span></div>
+        </div>
+        <div class="panel-subsection">
+          <span class="subsection-label">Most used words</span>
+          <div id="top-words-list" class="word-freq-list"></div>
+        </div>
+      </section>
+
+      <!-- Writing Issues (Grammar + Spelling + Style) -->
+      <section class="panel-section">
+        <h4 class="section-title"><i class="fas fa-spell-check"></i> Writing issues</h4>
+        <div class="issue-tabs" id="issue-tabs" role="tablist">
+          <button class="issue-tab active" data-tab="all" role="tab">All <span class="issue-tab-count" id="issue-count-all">0</span></button>
+          <button class="issue-tab" data-tab="spelling" role="tab">Spelling <span class="issue-tab-count" id="issue-count-spelling">0</span></button>
+          <button class="issue-tab" data-tab="grammar" role="tab">Grammar <span class="issue-tab-count" id="issue-count-grammar">0</span></button>
+          <button class="issue-tab" data-tab="style" role="tab">Style <span class="issue-tab-count" id="issue-count-style">0</span></button>
+        </div>
+        <div id="grammar-count" class="grammar-count">Click "Check now" to analyze</div>
+        <button class="btn btn-ghost btn-sm grammar-refresh-btn" id="grammar-refresh-btn">
+          <i class="fas fa-sync-alt"></i> Check now
+        </button>
+        <div id="grammar-list" class="grammar-list"></div>
+        <p class="panel-footnote">Grammar & spelling via LanguageTool · Style checks run locally · Your personal dictionary and ignored rules are saved to this browser.</p>
+      </section>
+
+    </div>
+  </aside>
+
+  <!-- ─── Status Bar ──────────────────────────────────────── -->
+  <footer class="status-bar" id="status-bar">
+    <div class="status-left">
+      <span id="word-count">0 words</span>
+      <span class="status-sep">·</span>
+      <span id="char-count">0 characters</span>
+      <span class="status-sep">·</span>
+      <span id="reading-time-status" class="status-reading-time">—</span>
+      <span class="status-sep">·</span>
+      <button id="ai-status-badge" class="status-ai-badge" title="AI Detection — click for details">AI: —</button>
+      <span class="status-sep">·</span>
+      <button id="grammar-status-badge" class="status-grammar-badge" title="Grammar check status">✓</button>
+    </div>
+    <div class="status-right">
+      <label for="zoom-select" class="status-label">Zoom:</label>
+      <select id="zoom-select" class="zoom-select">
+        <option value="0.75">75%</option>
+        <option value="0.9">90%</option>
+        <option value="1" selected>100%</option>
+        <option value="1.25">125%</option>
+        <option value="1.5">150%</option>
+      </select>
+    </div>
+  </footer>
+
+  <!-- ─── New Document Modal ──────────────────────────────── -->
+  <div class="modal-overlay hidden" id="new-doc-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal" id="modal-box">
+      <div class="modal-icon">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+      <h3 class="modal-title" id="modal-title">Start New Document?</h3>
+      <p class="modal-body">This will clear your current document. Any unsaved content will be lost.</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+        <button class="btn btn-danger" id="modal-confirm">New Document</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Link Dialog ──────────────────────────────────────── -->
+  <div class="modal-overlay hidden" id="link-modal" role="dialog" aria-modal="true" aria-labelledby="link-modal-title">
+    <div class="modal" id="link-modal-box">
+      <h3 class="modal-title" id="link-modal-title">Insert Link</h3>
+      <div class="form-group">
+        <label for="link-url-input">URL</label>
+        <input type="url" id="link-url-input" class="form-input" placeholder="https://example.com" autocomplete="off">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="link-cancel">Cancel</button>
+        <button class="btn btn-primary" id="link-confirm">Insert</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Templates Modal ────────────────────────────────────── -->
+  <div class="modal-overlay hidden" id="templates-modal" role="dialog" aria-modal="true" aria-labelledby="templates-title">
+    <div class="modal templates-modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="templates-title"><i class="fas fa-layer-group"></i> Document Templates</h3>
+        <button class="panel-close-btn" id="templates-close"><i class="fas fa-times"></i></button>
+      </div>
+      <p class="modal-body">Choose a template to start your document. This will replace your current content.</p>
+      <div id="template-grid" class="template-grid"></div>
+    </div>
+  </div>
+
+  <!-- ─── Toast Container ──────────────────────────────────── -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+  <!-- ─── Scripts ─────────────────────────────────────────── -->
+  <script src="js/editor.js?v=10"></script>
+  <script src="js/analysis.js?v=10"></script>
+  <script src="js/aidetect_llm.js?v=10"></script>
+  <script src="js/autosave.js?v=10"></script>
+  <script src="js/export.js?v=10"></script>
+  <script src="js/findreplace.js?v=10"></script>
+  <script src="js/templates.js?v=10"></script>
+  <script src="js/statspanel.js?v=10"></script>
+  <script src="js/ui.js?v=10"></script>
+  <script src="js/app.js?v=10"></script>
+
+</body>
+</html>

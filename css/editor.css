@@ -1,0 +1,249 @@
+/* ================================================================
+   editor.css — Quill Editor overrides & page content typography
+   ================================================================ */
+
+/* ─── Container & Wrapper ────────────────────────────────── */
+#editor-container {
+  width: 100%;
+}
+
+/* Remove all Quill Snow chrome */
+.ql-container.ql-snow {
+  border: none !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12pt;
+  line-height: 1.7;
+}
+
+.ql-toolbar.ql-snow {
+  display: none; /* We use our own toolbar */
+}
+
+/* ─── Editor Surface ─────────────────────────────────────── */
+.ql-editor {
+  padding: 0 !important;
+  min-height: calc(297mm - 144px); /* A4 minus vertical padding */
+  overflow: visible !important;
+  color: var(--text-primary);
+  caret-color: var(--accent);
+  word-break: break-word;
+  outline: none;
+  tab-size: 4;
+  white-space: pre-wrap;
+  transition: color 0.2s;
+}
+
+/* ─── Placeholder ────────────────────────────────────────── */
+.ql-editor.ql-blank::before {
+  color: var(--text-muted) !important;
+  font-style: italic;
+  left: 0 !important;
+  right: 0 !important;
+  content: 'Start typing your document…';
+  pointer-events: none;
+  font-size: 12pt;
+}
+
+/* ─── Paragraph & Spacing ────────────────────────────────── */
+.ql-editor p {
+  margin-bottom: 0.5em;
+  line-height: 1.7;
+}
+
+/* ─── Headings ───────────────────────────────────────────── */
+.ql-editor h1 {
+  font-size: 24pt;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 1.2em 0 0.4em;
+  color: var(--text-primary);
+}
+
+.ql-editor h2 {
+  font-size: 18pt;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 1em 0 0.35em;
+  color: var(--text-primary);
+}
+
+.ql-editor h3 {
+  font-size: 14pt;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0.9em 0 0.3em;
+  color: var(--text-primary);
+}
+
+.ql-editor h4 {
+  font-size: 12pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0.9em 0 0.3em;
+  color: var(--text-secondary);
+}
+
+/* ─── Lists ──────────────────────────────────────────────── */
+.ql-editor ol,
+.ql-editor ul {
+  padding-left: 1.6em;
+  margin-bottom: 0.5em;
+}
+
+.ql-editor ol > li,
+.ql-editor ul > li {
+  margin-bottom: 0.2em;
+  line-height: 1.7;
+}
+
+/* ─── Blockquote ─────────────────────────────────────────── */
+.ql-editor blockquote {
+  border-left: 4px solid var(--accent);
+  background: var(--bg-btn-hover);
+  margin: 1em 0;
+  padding: 0.6em 1.2em;
+  border-radius: 0 6px 6px 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* ─── Code Block ─────────────────────────────────────────── */
+.ql-editor pre.ql-syntax {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: 8px;
+  padding: 16px 20px;
+  font-family: 'Source Code Pro', 'Courier New', monospace;
+  font-size: 10.5pt;
+  line-height: 1.6;
+  overflow-x: auto;
+  margin: 1em 0;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+[data-theme="dark"] .ql-editor pre.ql-syntax {
+  background: #12121f;
+  border-color: rgba(255,255,255,0.1);
+}
+
+/* ─── Inline Code ────────────────────────────────────────── */
+.ql-editor code {
+  background: var(--bg-btn-active);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: 'Source Code Pro', 'Courier New', monospace;
+  font-size: 0.88em;
+  color: #c0392b;
+}
+
+[data-theme="dark"] .ql-editor code {
+  color: #f38ba8;
+}
+
+/* ─── Links ──────────────────────────────────────────────── */
+.ql-editor a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: rgba(26, 115, 232, 0.4);
+  text-underline-offset: 2px;
+  transition: color 0.15s;
+}
+
+.ql-editor a:hover {
+  color: var(--accent-hover);
+  text-decoration-color: var(--accent);
+}
+
+/* ─── Horizontal Rule ────────────────────────────────────── */
+.ql-editor hr,
+.doc-hr {
+  border: none;
+  border-top: 2px solid var(--border);
+  margin: 1.5em 0;
+}
+
+/* ─── Selection ──────────────────────────────────────────── */
+.ql-editor ::selection {
+  background: rgba(26, 115, 232, 0.2);
+}
+
+[data-theme="dark"] .ql-editor ::selection {
+  background: rgba(138, 180, 248, 0.3);
+}
+
+/* ─── Indent ─────────────────────────────────────────────── */
+.ql-indent-1 { padding-left: 2em; }
+.ql-indent-2 { padding-left: 4em; }
+.ql-indent-3 { padding-left: 6em; }
+.ql-indent-4 { padding-left: 8em; }
+
+/* ─── Font Faces (applied via inline style from Quill) ────── */
+/* Ensure Google Fonts are referenced correctly */
+[style*="font-family: 'Libre Baskerville'"],
+[style*='font-family: "Libre Baskerville"'] {
+  font-family: 'Libre Baskerville', Georgia, serif !important;
+}
+
+[style*="font-family: 'Source Code Pro'"],
+[style*='font-family: "Source Code Pro"'] {
+  font-family: 'Source Code Pro', 'Courier New', monospace !important;
+}
+
+[style*="font-family: Inter"] {
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* ─── Tooltip (Quill link tooltip) ──────────────────────── */
+.ql-tooltip {
+  display: none !important; /* We use our own link dialog */
+}
+
+/* ─── Snow theme bubble removal ─────────────────────────── */
+.ql-snow .ql-editor {
+  border: none;
+}
+
+/* ─── Page break hint (for multi-page PDF) ──────────────── */
+.page-break {
+  display: block;
+  height: 0;
+  page-break-after: always;
+  break-after: page;
+  border-top: 1px dashed var(--border);
+  margin: 2em 0;
+}
+
+
+/* ─── Images ─────────────────────────────────────────────── */
+.ql-editor img.doc-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.8em auto;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.06);
+}
+
+.ql-editor img.doc-image[data-image-align="left"] {
+  margin: 0.8em auto 0.8em 0;
+}
+
+.ql-editor img.doc-image[data-image-align="right"] {
+  margin: 0.8em 0 0.8em auto;
+}
+
+.ql-editor img.doc-image[data-image-selected="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+
+/* Ensure all editor images are visibly interactive, even legacy ones */
+.ql-editor img {
+  max-width: 100%;
+  height: auto;
+  cursor: pointer;
+}

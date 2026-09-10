@@ -1,0 +1,93 @@
+/* ================================================================
+   theme.css — CSS Custom Properties for Light / Dark modes
+   ================================================================ */
+
+:root {
+  /* Backgrounds */
+  --bg-app:         #f0f2f5;
+  --bg-header:      #ffffff;
+  --bg-toolbar:     #ffffff;
+  --bg-page:        #ffffff;
+  --bg-modal:       #ffffff;
+  --bg-btn-hover:   #f1f3f4;
+  --bg-btn-active:  #e0e3e8;
+  --bg-select:      #ffffff;
+  --bg-input:       #ffffff;
+
+  /* Text */
+  --text-primary:   #202124;
+  --text-secondary: #5f6368;
+  --text-muted:     #9aa0a6;
+  --text-inverse:   #ffffff;
+
+  /* Borders */
+  --border:         #dadce0;
+  --border-focus:   #1a73e8;
+
+  /* Accent / Brand */
+  --accent:         #1a73e8;
+  --accent-hover:   #1557b0;
+  --accent-text:    #ffffff;
+
+  /* Danger */
+  --danger:         #d93025;
+  --danger-hover:   #b52a1c;
+
+  /* Shadows */
+  --shadow-header:  0 1px 3px rgba(0,0,0,0.1);
+  --shadow-toolbar: 0 1px 2px rgba(0,0,0,0.08);
+  --shadow-page:    0 2px 8px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1);
+  --shadow-modal:   0 8px 32px rgba(0,0,0,0.24), 0 2px 8px rgba(0,0,0,0.12);
+  --shadow-toast:   0 4px 16px rgba(0,0,0,0.16);
+
+  /* Button active states */
+  --btn-active-bg:  #e8f0fe;
+  --btn-active-text:#1a73e8;
+
+  /* Status colors */
+  --saved-color:    #34a853;
+  --unsaved-color:  #fbbc04;
+  --error-color:    #ea4335;
+
+  /* Layout constants */
+  --header-height:  56px;
+  --toolbar-height: 48px;
+  --status-height:  32px;
+  --page-width:     794px;   /* A4 at 96dpi ≈ 794px */
+  --page-padding:   72px;    /* ~1 inch = 96px; using 72px for screen comfort */
+}
+
+/* ─── Dark Theme ─────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-app:         #1a1a1a;
+  --bg-header:      #2c2c2c;
+  --bg-toolbar:     #2c2c2c;
+  --bg-page:        #2a2a2a;
+  --bg-modal:       #2c2c2c;
+  --bg-btn-hover:   #3a3a3a;
+  --bg-btn-active:  #4a4a4a;
+  --bg-select:      #3a3a3a;
+  --bg-input:       #3a3a3a;
+
+  --text-primary:   #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-muted:     #5f6368;
+
+  --border:         #404040;
+  --border-focus:   #8ab4f8;
+
+  --accent:         #8ab4f8;
+  --accent-hover:   #aecbfa;
+  --accent-text:    #202124;
+
+  --shadow-header:  0 1px 3px rgba(0,0,0,0.4);
+  --shadow-toolbar: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-page:    0 2px 12px rgba(0,0,0,0.5);
+  --shadow-modal:   0 8px 32px rgba(0,0,0,0.6);
+
+  --btn-active-bg:  #2d3748;
+  --btn-active-text:#8ab4f8;
+
+  --saved-color:    #57bb76;
+  --unsaved-color:  #fdd663;
+}
