@@ -147,10 +147,93 @@
   quill.root.style.lineHeight = '1.7';
 
   let paginationFrame = null;
+  let activePage = 1;
+  let lastLayoutSignature = '';
 
   function parsePx(value, fallback) {
     const n = parseFloat(value);
     return Number.isFinite(n) ? n : fallback;
+  }
+
+  function syncPaperMetrics(canvas) {
+    const rootStyles = window.getComputedStyle(document.documentElement);
+    const baseWidth = parsePx(rootStyles.getPropertyValue('--page-width'), 794);
+    const baseHeight = parsePx(rootStyles.getPropertyValue('--page-height'), 1123);
+    const basePadding = parsePx(rootStyles.getPropertyValue('--page-padding'), 72);
+    const visibleWidth = canvas.clientWidth || baseWidth;
+    const scale = Math.min(1, visibleWidth / baseWidth);
+
+    canvas.style.setProperty('--page-height', Math.round(baseHeight * scale) + 'px');
+    canvas.style.setProperty('--page-padding', Math.max(20, Math.round(basePadding * scale)) + 'px');
+  }
+
+  function pageMetrics(canvas) {
+    const styles = window.getComputedStyle(canvas);
+    const pageHeight = parsePx(styles.getPropertyValue('--page-height'), 1123);
+    const pageGap = parsePx(styles.getPropertyValue('--page-gap'), 12);
+    const paddingTop = parsePx(styles.paddingTop, 0);
+    const paddingBottom = parsePx(styles.paddingBottom, 0);
+    return {
+      pageHeight,
+      pageGap,
+      contentHeight: Math.max(1, pageHeight - paddingTop - paddingBottom),
+    };
+  }
+
+  function renderPageNavigation(pageCount, metrics) {
+    const markers = document.getElementById('page-markers');
+    const thumbnails = document.getElementById('page-thumbnail-list');
+    if (!markers || !thumbnails) return;
+
+    const markerFragment = document.createDocumentFragment();
+    const thumbnailFragment = document.createDocumentFragment();
+    const pitch = metrics.pageHeight + metrics.pageGap;
+
+    for (let page = 1; page <= pageCount; page += 1) {
+      const marker = document.createElement('span');
+      marker.className = 'page-marker';
+      marker.style.top = (12 + ((page - 1) * pitch)) + 'px';
+      marker.textContent = 'Page ' + page;
+      markerFragment.appendChild(marker);
+
+      const thumbnail = document.createElement('button');
+      thumbnail.type = 'button';
+      thumbnail.className = 'page-thumbnail';
+      thumbnail.dataset.page = String(page);
+      thumbnail.setAttribute('aria-label', 'Go to page ' + page);
+      thumbnail.innerHTML = '<span class="page-thumbnail-sheet"></span><span class="page-thumbnail-label">' + page + '</span>';
+      thumbnailFragment.appendChild(thumbnail);
+    }
+
+    markers.replaceChildren(markerFragment);
+    thumbnails.replaceChildren(thumbnailFragment);
+  }
+
+  function setActivePage(page, pageCount) {
+    activePage = Math.max(1, Math.min(page, pageCount));
+    const label = document.getElementById('page-status');
+    if (label) label.textContent = 'Page ' + activePage + ' of ' + pageCount;
+    const prev = document.getElementById('page-prev-btn');
+    const next = document.getElementById('page-next-btn');
+    if (prev) prev.disabled = activePage <= 1;
+    if (next) next.disabled = activePage >= pageCount;
+    document.querySelectorAll('.page-thumbnail').forEach(function (thumb) {
+      const isActive = Number(thumb.dataset.page) === activePage;
+      thumb.classList.toggle('active', isActive);
+      if (isActive) thumb.setAttribute('aria-current', 'page');
+      else thumb.removeAttribute('aria-current');
+    });
+  }
+
+  function goToPage(page) {
+    const canvas = document.getElementById('page-canvas');
+    const pageArea = document.getElementById('page-area');
+    if (!canvas || !pageArea) return;
+    const metrics = pageMetrics(canvas);
+    const pageCount = Number(canvas.style.getPropertyValue('--page-count')) || 1;
+    const target = canvas.offsetTop + ((Math.max(1, Math.min(page, pageCount)) - 1) * (metrics.pageHeight + metrics.pageGap)) - 12;
+    pageArea.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+    setActivePage(page, pageCount);
   }
 
   function updatePagination() {
@@ -158,19 +241,23 @@
     const editor = quill.root;
     if (!canvas || !editor) return;
 
-    const styles = window.getComputedStyle(canvas);
-    const pageHeight = parsePx(styles.getPropertyValue('--page-height'), 1123);
-    const pageGap = parsePx(styles.getPropertyValue('--page-gap'), 28);
-    const paddingTop = parsePx(styles.paddingTop, 0);
-    const paddingBottom = parsePx(styles.paddingBottom, 0);
-    const contentHeightPerPage = Math.max(1, pageHeight - paddingTop - paddingBottom);
-    const contentHeight = Math.max(editor.scrollHeight, contentHeightPerPage);
+    syncPaperMetrics(canvas);
+    const metrics = pageMetrics(canvas);
+    const contentHeight = Math.max(editor.scrollHeight, metrics.contentHeight);
 
-    const pageCount = Math.max(1, Math.ceil(contentHeight / contentHeightPerPage));
-    const canvasHeight = (pageCount * pageHeight) + ((pageCount - 1) * pageGap);
+    // Only rendered content determines a new page. Canvas height and visual gaps
+    // never feed back into this measurement, preventing duplicate blank pages.
+    const pageCount = Math.max(1, Math.ceil((contentHeight - 0.5) / metrics.contentHeight));
+    const canvasHeight = (pageCount * metrics.pageHeight) + ((pageCount - 1) * metrics.pageGap);
 
     canvas.style.setProperty('--page-count', String(pageCount));
     canvas.style.minHeight = canvasHeight + 'px';
+    const layoutSignature = [pageCount, metrics.pageHeight, metrics.pageGap, metrics.contentHeight].join(':');
+    if (layoutSignature !== lastLayoutSignature) {
+      renderPageNavigation(pageCount, metrics);
+      lastLayoutSignature = layoutSignature;
+    }
+    setActivePage(activePage, pageCount);
   }
 
   function schedulePaginationUpdate() {
@@ -182,14 +269,43 @@
   }
 
   quill.on('text-change', schedulePaginationUpdate);
+  quill.on('selection-change', function (range) {
+    if (!range) return;
+    const canvas = document.getElementById('page-canvas');
+    if (!canvas) return;
+    const metrics = pageMetrics(canvas);
+    const pageCount = Number(canvas.style.getPropertyValue('--page-count')) || 1;
+    const bounds = quill.getBounds(range.index);
+    setActivePage(Math.floor(bounds.top / metrics.contentHeight) + 1, pageCount);
+  });
   window.addEventListener('resize', schedulePaginationUpdate);
+  if ('ResizeObserver' in window) {
+    const pageArea = document.getElementById('page-area');
+    if (pageArea) new ResizeObserver(schedulePaginationUpdate).observe(pageArea);
+  }
   quill.root.addEventListener('load', function (event) {
     if (event.target && event.target.tagName === 'IMG') schedulePaginationUpdate();
   }, true);
   quill.root.addEventListener('paste', schedulePaginationUpdate);
+  document.getElementById('page-thumbnail-list')?.addEventListener('click', function (event) {
+    const thumb = event.target.closest('.page-thumbnail');
+    if (thumb) goToPage(Number(thumb.dataset.page));
+  });
+  document.getElementById('page-prev-btn')?.addEventListener('click', function () { goToPage(activePage - 1); });
+  document.getElementById('page-next-btn')?.addEventListener('click', function () { goToPage(activePage + 1); });
+  document.getElementById('page-status')?.addEventListener('click', function () { goToPage(activePage); });
+  document.getElementById('page-area')?.addEventListener('scroll', function () {
+    const canvas = document.getElementById('page-canvas');
+    const pageArea = document.getElementById('page-area');
+    if (!canvas || !pageArea) return;
+    const metrics = pageMetrics(canvas);
+    const pageCount = Number(canvas.style.getPropertyValue('--page-count')) || 1;
+    const viewportMiddle = pageArea.scrollTop + (pageArea.clientHeight * 0.4) - canvas.offsetTop;
+    setActivePage(Math.floor(Math.max(0, viewportMiddle) / (metrics.pageHeight + metrics.pageGap)) + 1, pageCount);
+  }, { passive: true });
   schedulePaginationUpdate();
 
   // Expose globally so other modules can access
   window.quill = quill;
-  window.PagePagination = { refresh: schedulePaginationUpdate };
+  window.PagePagination = { refresh: schedulePaginationUpdate, goToPage };
 })();

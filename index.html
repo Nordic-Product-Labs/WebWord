@@ -43,8 +43,8 @@
 
   <!-- App CSS -->
   <link rel="stylesheet" href="css/theme.css?v=10">
-  <link rel="stylesheet" href="css/app.css?v=10">
-  <link rel="stylesheet" href="css/editor.css?v=10">
+  <link rel="stylesheet" href="css/app.css?v=11">
+  <link rel="stylesheet" href="css/editor.css?v=11">
   <link rel="stylesheet" href="print.css" media="print">
 </head>
 <body>
@@ -317,7 +317,12 @@
 
   <!-- ─── Main Page Area ──────────────────────────────────── -->
   <main class="page-area" id="page-area">
+    <aside class="page-navigation" id="page-navigation" aria-label="Page navigation">
+      <div class="page-navigation-title"><i class="fas fa-copy"></i> Pages</div>
+      <div class="page-thumbnail-list" id="page-thumbnail-list"></div>
+    </aside>
     <div class="page-canvas" id="page-canvas">
+      <div class="page-markers" id="page-markers" aria-hidden="true"></div>
       <div id="editor-container">
         <!-- Quill mounts here -->
       </div>
@@ -467,6 +472,11 @@
   <!-- ─── Status Bar ──────────────────────────────────────── -->
   <footer class="status-bar" id="status-bar">
     <div class="status-left">
+      <div class="status-pages" aria-label="Page navigation">
+        <button class="status-page-button" id="page-prev-btn" type="button" title="Previous page" aria-label="Previous page"><i class="fas fa-chevron-left"></i></button>
+        <button class="status-page-current" id="page-status" type="button" title="Go to the current page">Page 1 of 1</button>
+        <button class="status-page-button" id="page-next-btn" type="button" title="Next page" aria-label="Next page"><i class="fas fa-chevron-right"></i></button>
+      </div>
       <span id="word-count">0 words</span>
       <span class="status-sep">·</span>
       <span id="char-count">0 characters</span>
@@ -535,7 +545,7 @@
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
   <!-- ─── Scripts ─────────────────────────────────────────── -->
-  <script src="js/editor.js?v=10"></script>
+  <script src="js/editor.js?v=11"></script>
   <script src="js/analysis.js?v=10"></script>
   <script src="js/aidetect_llm.js?v=10"></script>
   <script src="js/autosave.js?v=10"></script>

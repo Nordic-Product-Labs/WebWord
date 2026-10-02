@@ -33,6 +33,13 @@
   transition: color 0.2s;
 }
 
+/* Keep the edit surface readable at narrow widths without a horizontal page scroll. */
+@media (max-width: 860px) {
+  .ql-editor {
+    font-size: clamp(11pt, 3.5vw, 12pt);
+  }
+}
+
 /* ─── Placeholder ────────────────────────────────────────── */
 .ql-editor.ql-blank::before {
   color: var(--text-muted) !important;
