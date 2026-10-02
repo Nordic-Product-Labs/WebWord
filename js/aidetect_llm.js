@@ -165,6 +165,8 @@
   }
 
   async function analyze(text) {
+    const eligibility = window.Analysis?.assessAIInput(text || '');
+    if (eligibility && !eligibility.eligible) return { insufficient: true, label: eligibility.label };
     if (!isReady()) throw new Error('Model not loaded — call load() first');
     if (!text || text.trim().length < 40) {
       return { insufficient: true };

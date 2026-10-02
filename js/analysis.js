@@ -1,14 +1,8 @@
 /* ================================================================
    analysis.js — Analysis Engine v2
    ----------------------------------------------------------------
-   Multi-signal AI detection + client-side style checker + grammar
-   (LanguageTool proxy). All heuristics are informed by published
-   research on GPTZero (burstiness/perplexity), DetectGPT
-   (perturbation curvature), Ghostbuster (n-gram probability),
-   Binoculars (cross-perplexity), and GLTR (token predictability).
-   Since we run entirely in-browser with no model, we approximate
-   those signals with computable linguistic features and combine
-   them with a calibrated weighted composite.
+   Experimental style signals, client-side style checks, and grammar.
+   The style index is not validated as an authorship probability.
    ================================================================ */
 
 (function () {
@@ -456,6 +450,31 @@
   // ─────────────────────────────────────────────────────────────
   // 4.  MAIN AI DETECTION — weighted composite with calibration
   // ─────────────────────────────────────────────────────────────
+  // Conservative eligibility checks, not a language classifier or a proof of
+  // meaningful writing. Unsupported samples receive no authorship verdict.
+  function assessAIInput(text) {
+    const words = splitWords(text || '');
+    const sentences = splitSentences(text || '');
+    const reject = (reason, label) => ({ eligible: false, reason, label, wordCount: words.length });
+    if (words.length < 80) return reject('short', 'Not enough text — add at least 80 words of prose');
+    const letters = (text.match(/\p{L}/gu) || []).length;
+    const englishLetters = (text.match(/[a-z]/gi) || []).length;
+    const functionRatio = words.filter(word => FUNCTION_WORDS.has(word)).length / words.length;
+    const unusualRatio = words.filter(word => word.length > 20 || (word.length > 3 && !/[aeiouy]/.test(word))).length / words.length;
+    const uniqueRatio = new Set(words).size / words.length;
+    const counts = new Map();
+    words.forEach(word => counts.set(word, (counts.get(word) || 0) + 1));
+    let mostFrequent = 0;
+    counts.forEach(count => { mostFrequent = Math.max(mostFrequent, count); });
+    const repeated = mostFrequent / words.length;
+    if (englishLetters / Math.max(letters, 1) < 0.85 || functionRatio < 0.12 || unusualRatio > 0.2) {
+      return reject('unsupported', 'Cannot assess this sample — use connected English prose');
+    }
+    if (uniqueRatio < 0.12 || repeated > 0.2) return reject('repetitive', 'Too much repeated text for a useful assessment');
+    if (sentences.length < 4) return reject('sentences', 'Add at least four complete sentences to assess writing patterns');
+    return { eligible: true, wordCount: words.length };
+  }
+
   function detectAI(text) {
     const clean = text.replace(/\s+/g, ' ').trim();
     const tLower = clean.toLowerCase();
@@ -463,10 +482,13 @@
     const sentences = splitSentences(clean);
     const paragraphs = splitParagraphs(text);
 
-    if (words.length < 30) {
+    const eligibility = assessAIInput(text);
+    if (!eligibility.eligible) {
       return {
         score: null,
-        label: 'Too short to analyze — need at least 30 words',
+        label: eligibility.label,
+        reason: eligibility.reason,
+        wordCount: words.length,
         confidence: 'none',
         signals: {},
         aiPhrases: [],
@@ -519,23 +541,17 @@
     let raw = 0;
     for (const k in weights) raw += (sig[k] || 0) * weights[k];
 
-    // Calibration curve: sigmoid centered at 0.36. Slope 8 stretches tails
-    // so genuinely AI-heavy text lands 75-95 and casual human writing stays
-    // under 25. Midpoint tuned so a raw score of ~0.45 (a document that
-    // shows several strong AI signals but no slop phrases) reads as ~65%.
-    const calibrated = 1 / (1 + Math.exp(-8 * (raw - 0.33)));
-    const score = Math.round(clamp01(calibrated) * 100);
+    // A descriptive style index, not a calibrated probability of authorship.
+    // Normalize the weights instead of stretching ordinary prose toward 100.
+    const totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
+    const score = Math.round(clamp01(raw / totalWeight) * 100);
 
     const label =
-      score >= 85 ? 'Very likely AI-generated' :
-      score >= 65 ? 'Likely AI-generated' :
-      score >= 45 ? 'Possibly AI-assisted' :
-      score >= 25 ? 'Mostly human' :
-                    'Human-written';
+      score >= 65 ? 'Strong stylistic signals — authorship uncertain' :
+      score >= 40 ? 'Mixed stylistic signals — authorship uncertain' :
+                    'Few stylistic signals — authorship uncertain';
 
-    const confidence =
-      words.length >= 400 ? 'high' :
-      words.length >= 150 ? 'medium' : 'low';
+    const confidence = 'limited';
 
     const displaySignals = {};
     for (const k in sig) displaySignals[k] = Math.round(sig[k] * 100);
@@ -899,6 +915,7 @@
   // ─────────────────────────────────────────────────────────────
   window.Analysis = {
     detectAI,
+    assessAIInput,
     checkStyle,
     calcReadability,
     calcStats,

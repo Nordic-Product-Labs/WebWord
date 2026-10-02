@@ -33,6 +33,7 @@
 
   function renderAI(result) {
     lastHeuristicResult = result;
+    if ((window.quill.getText() || '').trim() !== neuralLastText) lastNeuralResult = null;
     const scoreEl = $('ai-score-value');
     const labelEl = $('ai-score-label');
     const barEl   = $('ai-score-bar-fill');
@@ -42,10 +43,17 @@
 
     if (!result || result.score === null) {
       if (scoreEl) scoreEl.textContent = '—';
-      if (labelEl) labelEl.textContent = result?.label || 'N/A';
+      if (labelEl) labelEl.textContent = result?.label || 'Waiting for current text…';
       if (barEl)   barEl.style.width = '0%';
       if (confEl)  confEl.textContent = '';
-      if (badgeEl) badgeEl.textContent = 'AI: —';
+      if (badgeEl) { badgeEl.textContent = 'AI: inconclusive'; badgeEl.style.color = ''; badgeEl.title = result?.label || 'Waiting for current text'; }
+      if (scoreEl) scoreEl.style.color = '';
+      if (phrasesEl) phrasesEl.textContent = '';
+      document.querySelectorAll('.signal-val').forEach(el => { el.textContent = ''; });
+      lastNeuralResult = null;
+      if ($('neural-metrics')) $('neural-metrics').hidden = true;
+      if ($('neural-status')) $('neural-status').textContent = result?.label || 'Waiting for current text…';
+      setSourceLine('No authorship verdict for this sample.', 'info');
       SIGNAL_IDS.forEach(id => {
         const bar = document.getElementById('signal-' + id + '-fill');
         if (bar) { bar.style.width = '0%'; bar.style.background = 'var(--border)'; }
@@ -53,16 +61,17 @@
       return;
     }
 
-    const { score, label, confidence, aiPhrases } = result;
+    const { score, label, aiPhrases } = result;
     const color = score >= 70 ? '#ea4335' : score >= 45 ? '#fbbc04' : '#34a853';
 
-    if (scoreEl) { scoreEl.textContent = score + '%'; scoreEl.style.color = color; }
+    if (scoreEl) { scoreEl.textContent = score + '/100'; scoreEl.style.color = color; }
     if (labelEl) labelEl.textContent = label;
     if (barEl)   { barEl.style.width = score + '%'; barEl.style.background = color; }
-    if (confEl)  confEl.textContent = `Confidence: ${confidence}` + (result.wordCount ? ` · ${result.wordCount} words` : '');
+    if (confEl)  confEl.textContent = `Style index · ${result.wordCount} words · authorship uncertain`;
+    setSourceLine('Writing patterns only; this score is not a probability of AI authorship.', 'info');
 
     if (badgeEl) {
-      badgeEl.textContent = `AI: ${score}%`;
+      badgeEl.textContent = `Style: ${score}/100`;
       badgeEl.style.color = color;
       badgeEl.title = `${label} — click for details`;
     }
@@ -71,10 +80,10 @@
       if (aiPhrases && aiPhrases.length > 0) {
         phrasesEl.innerHTML = aiPhrases.map(p => {
           const times = p.count > 1 ? ` <em>×${p.count}</em>` : '';
-          return `<span class="phrase-tag" title="Detected LLM phrase">${escapeHTML(p.phrase)}${times}</span>`;
+          return `<span class="phrase-tag" title="Common phrase; not evidence of authorship">${escapeHTML(p.phrase)}${times}</span>`;
         }).join('');
       } else {
-        phrasesEl.innerHTML = '<span class="phrase-empty">No common AI phrases detected</span>';
+        phrasesEl.innerHTML = '<span class="phrase-empty">No listed phrases found</span>';
       }
     }
 
@@ -94,20 +103,19 @@
             valEl.className = 'signal-val';
             row.appendChild(valEl);
           }
-          valEl.textContent = v + '%';
+          valEl.textContent = v + '/100';
           valEl.style.color = v >= 60 ? '#ea4335' : v >= 35 ? '#b8860b' : '#137333';
         }
       }
     });
 
-    // If a neural check ran earlier this session, re-blend so the
-    // top score stays neural-weighted as the user edits (until the
-    // text drifts enough that they re-run the deep check).
-    if (lastNeuralResult && !lastNeuralResult.insufficient) {
+    // Reuse a neural result only for the exact text that produced it.
+    if (lastNeuralResult && !lastNeuralResult.insufficient && neuralLastText === window.quill.getText().trim()) {
       renderNeural(lastNeuralResult);
     }
   }
   function renderNeural(neural) {
+    if (lastHeuristicResult?.score == null) return;
     lastNeuralResult = neural;
     const statusEl  = $('neural-status');
     const metricsEl = $('neural-metrics');
@@ -120,7 +128,7 @@
     const blEl      = $('neural-blended');
 
     if (!neural || neural.insufficient) {
-      if (statusEl)  statusEl.textContent  = 'Add more text (at least ~40 characters) to run the neural check.';
+      if (statusEl)  statusEl.textContent  = neural?.label || 'Not enough connected English prose for the neural check.';
       if (metricsEl) metricsEl.hidden = true;
       setSourceLine('Stylometric only — text too short for neural pass', 'info');
       return;
@@ -143,7 +151,7 @@
     if (pplHint) {
       pplHint.textContent = neural.perplexity < 30 ? 'very low → AI-like'
                           : neural.perplexity < 55 ? 'low → possibly AI'
-                          :                          'human-typical range';
+                          :                          'less predictable';
     }
     if (rankHint) {
       rankHint.textContent = neural.logRank < 3  ? 'very low → AI-like'
@@ -151,17 +159,17 @@
                            :                       'human-typical range';
     }
     if (nsEl) {
-      nsEl.textContent = neural.neuralScore + '%';
+      nsEl.textContent = neural.neuralScore + '/100';
       nsEl.style.color = neural.neuralScore >= 65 ? '#ea4335'
                        : neural.neuralScore >= 40 ? '#fbbc04' : '#34a853';
     }
 
     const heur = lastHeuristicResult?.score ?? 50;
-    if (styloEl) styloEl.textContent = heur + '%';
+    if (styloEl) styloEl.textContent = heur + '/100';
 
     const blended = Math.round(0.7 * neural.neuralScore + 0.3 * heur);
     if (blEl) {
-      blEl.textContent = blended + '%';
+      blEl.textContent = blended + '/100';
       blEl.style.color = blended >= 65 ? '#ea4335'
                        : blended >= 40 ? '#fbbc04' : '#34a853';
     }
@@ -173,17 +181,15 @@
     const confEl  = $('ai-confidence');
     const badgeEl = $('ai-status-badge');
     const color = blended >= 70 ? '#ea4335' : blended >= 45 ? '#fbbc04' : '#34a853';
-    const label = blended >= 80 ? 'Very likely AI-generated'
-                : blended >= 65 ? 'Likely AI-generated'
-                : blended >= 45 ? 'Possibly AI-assisted'
-                : blended >= 25 ? 'Mostly human'
-                :                 'Human-written';
-    if (scoreEl) { scoreEl.textContent = blended + '%'; scoreEl.style.color = color; }
+    const label = blended >= 65 ? 'Strong stylistic signals — authorship uncertain'
+                : blended >= 40 ? 'Mixed stylistic signals — authorship uncertain'
+                :                 'Few stylistic signals — authorship uncertain';
+    if (scoreEl) { scoreEl.textContent = blended + '/100'; scoreEl.style.color = color; }
     if (labelEl) labelEl.textContent = label;
     if (barEl)   { barEl.style.width = blended + '%'; barEl.style.background = color; }
-    if (confEl)  confEl.textContent = `Confidence: high · ${lastHeuristicResult?.wordCount || 0} words`;
-    if (badgeEl) { badgeEl.textContent = `AI: ${blended}%`; badgeEl.style.color = color; }
-    setSourceLine(`Neural ${neural.neuralScore}% + stylometric ${heur}% = ${blended}% blended`, 'info');
+    if (confEl)  confEl.textContent = `Experimental combined index · ${lastHeuristicResult.wordCount} words`;
+    if (badgeEl) { badgeEl.textContent = `Style: ${blended}/100`; badgeEl.style.color = color; badgeEl.title = label; }
+    setSourceLine('Experimental model and style signals; not a probability of AI authorship.', 'info');
   }
 
   function setSourceLine(text, tone) {
@@ -209,16 +215,13 @@
       return;
     }
     const text = (window.quill?.getText() || '').trim();
-    if (text.length < 40) {
-      renderNeural({ insufficient: true });
+    const eligibility = window.Analysis.assessAIInput(text);
+    if (!eligibility.eligible) {
+      renderAI(window.Analysis.detectAI(text));
       return;
     }
     if (lastNeuralResult && !lastNeuralResult.insufficient && !lastNeuralResult.unsupportedLanguage) {
       if (text === neuralLastText) return;
-      const l1 = neuralLastText.length, l2 = text.length;
-      if (Math.abs(l1 - l2) < 30 && text.slice(0, 200) === neuralLastText.slice(0, 200)) {
-        return;
-      }
     }
 
     neuralBusy = true;
@@ -254,12 +257,15 @@
         if (firstrunEl) firstrunEl.hidden = true;
         if (badgeEl)    { badgeEl.textContent = 'auto'; badgeEl.classList.remove('is-loading'); }
       }
+      if (!panelOpen || text !== (window.quill.getText() || '').trim()) return;
       setSourceLine('Running neural detector…', 'info');
       if (statusEl) statusEl.textContent = 'Running distilgpt2 over your text…';
       const result = await window.LLMDetector.analyze(text);
+      if (!panelOpen || text !== (window.quill.getText() || '').trim()) return;
       neuralLastText = text;
       renderNeural(result);
     } catch (err) {
+      if (!panelOpen || text !== (window.quill.getText() || '').trim()) return;
       console.error('Auto neural detection failed:', err);
       if (firstrunEl) firstrunEl.hidden = true;
       if (badgeEl)    { badgeEl.textContent = 'unavailable'; badgeEl.classList.remove('is-loading'); }
@@ -267,6 +273,7 @@
       if (statusEl) statusEl.textContent = 'Neural check failed: ' + (err.message || err);
     } finally {
       neuralBusy = false;
+      if (panelOpen && text !== (window.quill.getText() || '').trim()) scheduleNeuralAuto(400);
     }
   }
 
@@ -663,6 +670,7 @@
     // Debounced re-analysis on text change
     window.quill.on('text-change', function (delta, old, source) {
       if (source !== 'user') return;
+      renderAI(null);
       clearTimeout(updateTimer);
       updateTimer = setTimeout(() => {
         const text = window.quill.getText() || '';

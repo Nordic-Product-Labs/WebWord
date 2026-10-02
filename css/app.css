@@ -445,6 +445,21 @@ body {
   padding: 2px 4px 6px;
 }
 
+.page-thumbnail-item { position: relative; flex-shrink: 0; }
+.page-thumbnail-delete {
+  position: absolute;
+  right: 6px;
+  bottom: 3px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.page-thumbnail-delete:hover:not(:disabled) { color: var(--danger); background: var(--bg-btn-hover); }
+
 .page-thumbnail {
   width: 100%;
   border: 1px solid var(--border);

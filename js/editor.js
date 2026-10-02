@@ -250,7 +250,18 @@
       thumbnail.dataset.page = String(page);
       thumbnail.setAttribute('aria-label', 'Go to page ' + page);
       thumbnail.innerHTML = '<span class="page-thumbnail-sheet"></span><span class="page-thumbnail-label">' + page + '</span>';
-      thumbnailFragment.appendChild(thumbnail);
+      const item = document.createElement('div');
+      item.className = 'page-thumbnail-item';
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'page-thumbnail-delete';
+      remove.dataset.page = String(page);
+      remove.title = 'Delete page ' + page;
+      remove.setAttribute('aria-label', remove.title);
+      remove.disabled = pageCount <= 1;
+      remove.innerHTML = '<i class="fas fa-trash-alt" aria-hidden="true"></i>';
+      item.append(thumbnail, remove);
+      thumbnailFragment.appendChild(item);
     }
 
     markers.replaceChildren(markerFragment);
@@ -321,9 +332,11 @@
     }
 
     const text = quill.getText(range.start, range.end - range.start).trim();
-    if (text && !window.confirm('Delete all content on page ' + page + '? You can undo this with Ctrl+Z.')) return;
+    if (!window.confirm('Delete all content on page ' + page + '? You can undo this with Ctrl+Z.')) return;
 
+    quill.history.cutoff();
     quill.deleteText(range.start, range.end - range.start, 'user');
+    quill.history.cutoff();
     quill.setSelection(Math.min(range.start, quill.getLength() - 1), 0, 'silent');
     schedulePaginationUpdate();
     window.showToast(text ? 'Page ' + page + ' deleted' : 'Blank page removed', 'success');
@@ -385,6 +398,8 @@
   }, true);
   quill.root.addEventListener('paste', schedulePaginationUpdate);
   document.getElementById('page-thumbnail-list')?.addEventListener('click', function (event) {
+    const remove = event.target.closest('.page-thumbnail-delete');
+    if (remove) { deletePage(Number(remove.dataset.page)); return; }
     const thumb = event.target.closest('.page-thumbnail');
     if (thumb) goToPage(Number(thumb.dataset.page));
   });
