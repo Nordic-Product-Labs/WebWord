@@ -73,6 +73,10 @@
       const root = parsed.getElementById('__root');
       if (!root) return '';
       root.querySelectorAll('script, style, iframe, object, embed, meta, link').forEach(n => n.remove());
+      root.querySelectorAll('[data-page-flow-padding]').forEach(el => {
+        el.style.paddingTop = el.getAttribute('data-page-flow-padding') || '';
+        el.removeAttribute('data-page-flow-padding');
+      });
       root.querySelectorAll('*').forEach(el => {
         [...el.attributes].forEach(attr => {
           const name = attr.name.toLowerCase();
@@ -141,6 +145,9 @@
 
       if (document.fonts && document.fonts.ready) await document.fonts.ready;
       await raf2();
+      // Screen-only page gutters make on-canvas editing clear; the PDF engine
+      // paginates the original document itself, so remove those temporary spacers.
+      window.PagePagination?.clearFlow?.();
       editor.style.minHeight = '0';
 
       const opt = {
@@ -186,6 +193,7 @@
     } finally {
       if (prevEditorMinHeight) editor.style.minHeight = prevEditorMinHeight;
       else editor.style.removeProperty('min-height');
+      window.PagePagination?.refresh?.();
       if (prevTheme) root.setAttribute('data-theme', prevTheme);
       else root.removeAttribute('data-theme');
 

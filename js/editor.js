@@ -176,8 +176,48 @@
     return {
       pageHeight,
       pageGap,
+      paddingTop,
+      paddingBottom,
       contentHeight: Math.max(1, pageHeight - paddingTop - paddingBottom),
     };
+  }
+
+  function resetPageFlow(editor) {
+    Array.from(editor.children).forEach(function (block) {
+      if (!block.hasAttribute('data-page-flow-padding')) return;
+      block.style.paddingTop = block.getAttribute('data-page-flow-padding') || '';
+      block.removeAttribute('data-page-flow-padding');
+    });
+  }
+
+  function applyPageFlow(editor, metrics) {
+    resetPageFlow(editor);
+
+    const pitch = metrics.pageHeight + metrics.pageGap;
+    let currentPage = 0;
+    let pageEnd = metrics.contentHeight;
+
+    Array.from(editor.children).forEach(function (block) {
+      const computed = window.getComputedStyle(block);
+      const top = block.offsetTop;
+      const height = block.offsetHeight + parsePx(computed.marginBottom, 0);
+
+      // Very tall blocks (for example a large image or a long paragraph) remain
+      // breakable. Normal blocks move as a unit, matching "keep lines together"
+      // behavior and keeping the caret out of the page gutter.
+      while (top >= pageEnd) {
+        currentPage += 1;
+        pageEnd = (currentPage * pitch) + metrics.contentHeight;
+      }
+      if (top + height <= pageEnd || height > metrics.contentHeight) return;
+
+      currentPage += 1;
+      const nextPageStart = currentPage * pitch;
+      const existingPadding = parsePx(computed.paddingTop, 0);
+      block.setAttribute('data-page-flow-padding', block.style.paddingTop || '');
+      block.style.paddingTop = (existingPadding + Math.max(0, nextPageStart - top)) + 'px';
+      pageEnd = nextPageStart + metrics.contentHeight;
+    });
   }
 
   function renderPageNavigation(pageCount, metrics) {
@@ -243,11 +283,15 @@
 
     syncPaperMetrics(canvas);
     const metrics = pageMetrics(canvas);
-    const contentHeight = Math.max(editor.scrollHeight, metrics.contentHeight);
+    applyPageFlow(editor, metrics);
+    const physicalContentHeight = Math.max(editor.scrollHeight, metrics.contentHeight);
 
-    // Only rendered content determines a new page. Canvas height and visual gaps
-    // never feed back into this measurement, preventing duplicate blank pages.
-    const pageCount = Math.max(1, Math.ceil((contentHeight - 0.5) / metrics.contentHeight));
+    // The flow includes physical page gutters. Count by the complete page pitch,
+    // not by printable height, so one spacer cannot be miscounted as another page.
+    const pageCount = Math.max(1, Math.ceil(
+      (physicalContentHeight + metrics.paddingTop + metrics.paddingBottom + metrics.pageGap - 0.5)
+      / (metrics.pageHeight + metrics.pageGap)
+    ));
     const canvasHeight = (pageCount * metrics.pageHeight) + ((pageCount - 1) * metrics.pageGap);
 
     canvas.style.setProperty('--page-count', String(pageCount));
@@ -276,7 +320,7 @@
     const metrics = pageMetrics(canvas);
     const pageCount = Number(canvas.style.getPropertyValue('--page-count')) || 1;
     const bounds = quill.getBounds(range.index);
-    setActivePage(Math.floor(bounds.top / metrics.contentHeight) + 1, pageCount);
+    setActivePage(Math.floor(bounds.top / (metrics.pageHeight + metrics.pageGap)) + 1, pageCount);
   });
   window.addEventListener('resize', schedulePaginationUpdate);
   if ('ResizeObserver' in window) {
@@ -307,5 +351,9 @@
 
   // Expose globally so other modules can access
   window.quill = quill;
-  window.PagePagination = { refresh: schedulePaginationUpdate, goToPage };
+  window.PagePagination = {
+    refresh: schedulePaginationUpdate,
+    goToPage,
+    clearFlow: function () { resetPageFlow(quill.root); },
+  };
 })();

@@ -1685,6 +1685,7 @@ body.focus-mode .page-canvas {
 
   .page-canvas {
     width: calc(100vw - 16px);
+    --page-gap: 16px;
   }
 
   .doc-title-input {
