@@ -54,7 +54,9 @@
   --toolbar-height: 48px;
   --status-height:  32px;
   --page-width:     794px;   /* A4 at 96dpi ≈ 794px */
+  --page-height:    1123px;  /* A4 at 96dpi ≈ 1123px */
   --page-padding:   72px;    /* ~1 inch = 96px; using 72px for screen comfort */
+  --page-gap:       28px;    /* visual gap between on-screen pages */
 }
 
 /* ─── Dark Theme ─────────────────────────────────────────── */

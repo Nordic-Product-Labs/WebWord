@@ -105,6 +105,7 @@
       // Restore content
       window.quill.setContents(delta, 'silent');
       window.quill.history.clear(); // don't let undo go back past restore
+      window.PagePagination?.refresh?.();
       markSaved();
 
       // 'silent' source above suppresses text-change listeners, so the

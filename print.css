@@ -36,6 +36,11 @@
     background: white !important;
   }
 
+  .page-canvas::before,
+  .page-canvas::after {
+    display: none !important;
+  }
+
   /* Page margins handled by @page */
   @page {
     size: A4;

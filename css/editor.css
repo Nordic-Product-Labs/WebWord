@@ -22,7 +22,7 @@
 /* ─── Editor Surface ─────────────────────────────────────── */
 .ql-editor {
   padding: 0 !important;
-  min-height: calc(297mm - 144px); /* A4 minus vertical padding */
+  min-height: calc(var(--page-height) - (var(--page-padding) * 2));
   overflow: visible !important;
   color: var(--text-primary);
   caret-color: var(--accent);
