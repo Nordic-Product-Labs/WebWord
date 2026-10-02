@@ -9,9 +9,8 @@
   let currentIdx      = -1;
   let lastSearchTerm  = '';
   let lastCaseSens    = false;
-  // Snapshot of user-set backgrounds per range, so closing Find restores them.
-  // Each entry: { index, length, prev } where prev is undefined | color string.
-  let priorBg         = [];
+  let replacing = false;
+  let searchTimer;
 
   // ── Helpers ───────────────────────────────────────────────────
   function escapeRegex(s) {
@@ -20,23 +19,17 @@
 
   // ── Clear only the find-bar's own highlights, restoring any pre-existing ones ──
   function clearHighlights() {
-    if (!window.quill) return;
-    priorBg.forEach(entry => {
-      // Restore whatever the user had before we tinted this range (may be undefined = none)
-      window.quill.formatText(
-        entry.index, entry.length,
-        'background', entry.prev || false,
-        'silent'
-      );
-    });
-    priorBg = [];
+    window.CSS?.highlights?.delete('find-matches');
+    window.CSS?.highlights?.delete('find-current');
   }
 
   // ── Find all occurrences and highlight them ───────────────────
-  function findAll(term, caseSensitive) {
+  function findAll(term, caseSensitive, navigate = true) {
     clearHighlights();
     matches     = [];
     currentIdx  = -1;
+    lastSearchTerm = term;
+    lastCaseSens = caseSensitive;
 
     if (!term || !window.quill) {
       updateCounter();
@@ -46,7 +39,9 @@
     lastSearchTerm = term;
     lastCaseSens   = caseSensitive;
 
-    const text  = window.quill.getText();
+    // Embeds occupy one Quill index even though getText() omits them.
+    const text = window.quill.getContents().ops.map(op =>
+      typeof op.insert === 'string' ? op.insert : '\uFFFC').join('');
     const flags = caseSensitive ? 'g' : 'gi';
     let   re;
 
@@ -62,22 +57,10 @@
       matches.push({ index: m.index, length: m[0].length });
     }
 
-    // Snapshot the user's existing background at each match range BEFORE we tint it,
-    // so we can restore it exactly when the Find bar closes.
-    matches.forEach(match => {
-      const fmt = window.quill.getFormat(match.index, match.length);
-      priorBg.push({ index: match.index, length: match.length, prev: fmt.background });
-    });
-
-    // Highlight all in pale yellow
-    matches.forEach(match => {
-      window.quill.formatText(match.index, match.length, 'background', '#fff59d', 'silent');
-    });
-
     if (matches.length > 0) {
       currentIdx = 0;
       highlightCurrent();
-      scrollToCurrent();
+      if (navigate) scrollToCurrent();
     }
 
     updateCounter();
@@ -85,20 +68,30 @@
 
   // ── Highlight current match in orange ────────────────────────
   function highlightCurrent() {
+    if (!window.CSS?.highlights || !window.Highlight) return;
+    const all = new Highlight();
+    const current = new Highlight();
     matches.forEach((m, i) => {
-      window.quill.formatText(
-        m.index, m.length, 'background',
-        i === currentIdx ? '#ffab40' : '#fff59d',
-        'silent'
-      );
+      const [start, startOffset] = window.quill.getLeaf(m.index + 1);
+      const [end, endOffset] = window.quill.getLeaf(m.index + m.length);
+      if (start?.domNode.nodeType !== 3 || end?.domNode.nodeType !== 3) return;
+      const range = document.createRange();
+      range.setStart(start.domNode, Math.max(0, startOffset - 1));
+      range.setEnd(end.domNode, endOffset);
+      all.add(range);
+      if (i === currentIdx) current.add(range);
     });
+    CSS.highlights.set('find-matches', all);
+    CSS.highlights.set('find-current', current);
   }
 
   // ── Scroll editor to current match ───────────────────────────
   function scrollToCurrent() {
     if (!matches[currentIdx]) return;
     const m = matches[currentIdx];
+    const active = document.activeElement;
     window.quill.setSelection(m.index, m.length, 'silent');
+    if (document.getElementById('find-replace-bar')?.contains(active)) active.focus({ preventScroll: true });
 
     try {
       const bounds   = window.quill.getBounds(m.index, m.length);
@@ -136,8 +129,7 @@
     const replacement = document.getElementById('replace-input')?.value || '';
     const m           = matches[currentIdx];
 
-    window.quill.deleteText(m.index, m.length, 'user');
-    if (replacement) window.quill.insertText(m.index, replacement, 'user');
+    replaceMatches([m], replacement);
 
     // Re-search after replacement
     const term = document.getElementById('find-input')?.value || '';
@@ -150,10 +142,7 @@
     const count       = matches.length;
 
     // Replace from back to front to preserve indices
-    [...matches].reverse().forEach(m => {
-      window.quill.deleteText(m.index, m.length, 'user');
-      if (replacement) window.quill.insertText(m.index, replacement, 'user');
-    });
+    replaceMatches(matches, replacement);
 
     matches    = [];
     currentIdx = -1;
@@ -162,8 +151,31 @@
     window.showToast(`Replaced ${count} occurrence${count !== 1 ? 's' : ''}`, 'success');
   }
 
+  function replaceMatches(items, replacement) {
+    clearTimeout(searchTimer);
+    clearHighlights();
+    const Delta = Quill.import('delta');
+    let delta = new Delta();
+    let cursor = 0;
+    items.forEach(m => {
+      delta = delta.retain(m.index - cursor).delete(m.length);
+      if (replacement) delta = delta.insert(replacement, window.quill.getFormat(m.index, 1));
+      cursor = m.index + m.length;
+    });
+    replacing = true;
+    try {
+      window.quill.history.cutoff();
+      window.quill.updateContents(delta, 'user');
+      window.quill.history.cutoff();
+    } finally { replacing = false; }
+  }
+
   // ── Update match counter display ──────────────────────────────
   function updateCounter() {
+    ['find-prev-btn', 'find-next-btn', 'replace-one-btn', 'replace-all-btn'].forEach(id => {
+      const button = document.getElementById(id);
+      if (button) button.disabled = matches.length === 0;
+    });
     const el = document.getElementById('match-counter');
     if (!el) return;
     if (!lastSearchTerm) {
@@ -194,7 +206,7 @@
         const findInput = document.getElementById('find-input');
         if (findInput) {
           findInput.value = selectedText;
-          findAll(selectedText, false);
+          findAll(selectedText, document.getElementById('case-sensitive-cb')?.checked);
         }
       }
     }
@@ -202,11 +214,13 @@
     // Adjust page-area top margin to make room
     const pageArea = document.getElementById('page-area');
     if (pageArea) pageArea.classList.add('has-find-bar');
+    findAll(document.getElementById('find-input')?.value || '', document.getElementById('case-sensitive-cb')?.checked);
 
     setTimeout(() => document.getElementById('find-input')?.focus(), 50);
   }
 
   function close() {
+    clearTimeout(searchTimer);
     const bar = document.getElementById('find-replace-bar');
     if (!bar) return;
     bar.classList.add('hidden');
@@ -225,6 +239,13 @@
 
   // ── Init ──────────────────────────────────────────────────────
   function init() {
+    updateCounter();
+    window.quill.on('text-change', () => {
+      if (replacing || document.getElementById('find-replace-bar')?.classList.contains('hidden')) return;
+      clearHighlights();
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => findAll(lastSearchTerm, lastCaseSens, false), 100);
+    });
     const findInput  = document.getElementById('find-input');
     const replaceCb  = document.getElementById('case-sensitive-cb');
 

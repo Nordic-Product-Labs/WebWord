@@ -43,8 +43,8 @@
 
   <!-- App CSS -->
   <link rel="stylesheet" href="css/theme.css?v=12">
-  <link rel="stylesheet" href="css/app.css?v=12">
-  <link rel="stylesheet" href="css/editor.css?v=12">
+  <link rel="stylesheet" href="css/app.css?v=13">
+  <link rel="stylesheet" href="css/editor.css?v=13">
   <link rel="stylesheet" href="print.css" media="print">
 </head>
 <body>
@@ -65,6 +65,7 @@
       <input
         type="text"
         id="doc-title"
+        aria-label="Document title"
         class="doc-title-input"
         value="Untitled Document"
         placeholder="Document title..."
@@ -74,9 +75,9 @@
       >
     </div>
     <div class="header-right">
-      <div class="autosave-indicator" id="autosave-indicator" title="Auto-save status">
+      <div class="autosave-indicator" id="autosave-indicator" role="status" title="Drafts are saved in this browser. Export a copy for a portable backup.">
         <span class="indicator-dot" id="indicator-dot"></span>
-        <span class="indicator-text" id="indicator-text">Saved</span>
+        <span class="indicator-text" id="indicator-text">Ready to write</span>
       </div>
       <button class="btn btn-ghost icon-btn" id="theme-toggle" title="Toggle dark/light mode">
         <i class="fas fa-moon"></i>
@@ -86,6 +87,9 @@
       </button>
       <button class="btn btn-ghost icon-btn" id="stats-panel-btn" title="Document analysis & AI detection">
         <i class="fas fa-chart-pie"></i>
+      </button>
+      <button class="btn btn-ghost icon-btn" id="help-btn" title="Writing help and keyboard shortcuts" aria-label="Writing help and keyboard shortcuts">
+        <i class="fas fa-question-circle" aria-hidden="true"></i>
       </button>
       <button class="btn btn-ghost" id="templates-btn" title="Document templates">
         <i class="fas fa-layer-group"></i> Templates
@@ -297,14 +301,14 @@
   <div class="find-replace-bar hidden" id="find-replace-bar" aria-hidden="true">
     <div class="find-group">
       <i class="fas fa-search find-icon"></i>
-      <input type="text" id="find-input" class="find-input" placeholder="Find…" autocomplete="off" spellcheck="false">
-      <span id="match-counter" class="match-counter"></span>
+      <input type="text" id="find-input" class="find-input" aria-label="Find text" placeholder="Find…" autocomplete="off" spellcheck="false">
+      <span id="match-counter" class="match-counter" role="status"></span>
       <button class="find-nav-btn" id="find-prev-btn" title="Previous (Shift+Enter)"><i class="fas fa-chevron-up"></i></button>
       <button class="find-nav-btn" id="find-next-btn" title="Next (Enter)"><i class="fas fa-chevron-down"></i></button>
     </div>
     <div class="find-sep"></div>
     <div class="find-group">
-      <input type="text" id="replace-input" class="find-input" placeholder="Replace with…" autocomplete="off" spellcheck="false">
+      <input type="text" id="replace-input" class="find-input" aria-label="Replacement text" placeholder="Replace with…" autocomplete="off" spellcheck="false">
       <button class="btn btn-ghost find-action-btn" id="replace-one-btn">Replace</button>
       <button class="btn btn-ghost find-action-btn" id="replace-all-btn">All</button>
     </div>
@@ -507,7 +511,7 @@
         <i class="fas fa-exclamation-triangle"></i>
       </div>
       <h3 class="modal-title" id="modal-title">Start New Document?</h3>
-      <p class="modal-body">This will clear your current document. Any unsaved content will be lost.</p>
+      <p class="modal-body">This replaces your current document and its saved draft in this browser. Export a copy first if you want to keep it.</p>
       <div class="modal-actions">
         <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
         <button class="btn btn-danger" id="modal-confirm">New Document</button>
@@ -543,19 +547,34 @@
   </div>
 
   <!-- ─── Toast Container ──────────────────────────────────── -->
+  <dialog id="help-dialog" class="modal help-dialog" aria-labelledby="help-title">
+    <h3 id="help-title" class="modal-title">Your writing space</h3>
+    <p class="modal-body">Write, format, and export without an account. Your current draft is saved automatically in this browser.</p>
+    <dl class="shortcut-list">
+      <dt>Save draft</dt><dd><kbd>Ctrl / ⌘</kbd> + <kbd>S</kbd></dd>
+      <dt>Find and replace</dt><dd><kbd>Ctrl / ⌘</kbd> + <kbd>F</kbd></dd>
+      <dt>Insert link</dt><dd><kbd>Ctrl / ⌘</kbd> + <kbd>K</kbd></dd>
+      <dt>Export PDF</dt><dd><kbd>Ctrl / ⌘</kbd> + <kbd>E</kbd></dd>
+      <dt>Print</dt><dd><kbd>Ctrl / ⌘</kbd> + <kbd>P</kbd></dd>
+      <dt>Leave focus mode</dt><dd><kbd>Esc</kbd></dd>
+    </dl>
+    <p class="modal-body">Use Export to download PDF, plain text, or HTML. Browser drafts stay on this device and can be removed when browser data is cleared.</p>
+    <form method="dialog" class="modal-actions"><button class="btn btn-primary" autofocus>Got it</button></form>
+  </dialog>
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
   <!-- ─── Scripts ─────────────────────────────────────────── -->
-  <script src="js/editor.js?v=12"></script>
+  <script src="js/editor.js?v=13"></script>
   <script src="js/analysis.js?v=10"></script>
   <script src="js/aidetect_llm.js?v=10"></script>
-  <script src="js/autosave.js?v=10"></script>
+  <script src="js/autosave.js?v=13"></script>
   <script src="js/export.js?v=11"></script>
-  <script src="js/findreplace.js?v=10"></script>
-  <script src="js/templates.js?v=10"></script>
-  <script src="js/statspanel.js?v=10"></script>
-  <script src="js/ui.js?v=10"></script>
-  <script src="js/app.js?v=10"></script>
+  <script src="js/findreplace.js?v=13"></script>
+  <script src="js/templates.js?v=13"></script>
+  <script src="js/statspanel.js?v=13"></script>
+  <script src="js/ui.js?v=13"></script>
+  <script src="js/usability.js?v=1"></script>
+  <script src="js/app.js?v=13"></script>
 
 </body>
 </html>

@@ -207,10 +207,11 @@
     const tpl = TEMPLATES.find(t => t.id === id);
     if (!tpl || !window.quill) return;
 
-    const isEmpty = window.quill.getText().trim().length === 0;
+    const isEmpty = window.quill.getLength() <= 1;
 
     if (!isEmpty && !confirm('Replace the current document with this template?')) return;
 
+    window.FindReplace?.close();
     window.quill.setContents(tpl.delta, 'user');
     window.quill.history.clear();
     window.UI?.resetImageTools?.();
@@ -219,7 +220,7 @@
     if (titleInput) titleInput.value = tpl.title;
 
     window.quill.setSelection(window.quill.getLength(), 0, 'user');
-    window.AutoSave?.clear();
+    window.AutoSave?.flush();
     window.showToast(`Template "${tpl.name}" applied`, 'success');
   }
 

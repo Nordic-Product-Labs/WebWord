@@ -1,151 +1,102 @@
-/* ================================================================
-   autosave.js — localStorage auto-save with debounce & restore
-   ================================================================ */
-
+/* Browser-local draft persistence. Title and content are committed together. */
 (function () {
   'use strict';
+  const KEY = 'docpdf_draft';
+  let timer;
+  let dirty = false;
+  let errorShown = false;
 
-  const STORAGE_KEY_CONTENT = 'docpdf_content';
-  const STORAGE_KEY_TITLE   = 'docpdf_title';
-  const DEBOUNCE_MS         = 1500;
-
-  let saveTimer = null;
-  let isDirty   = false;
-
-  // ── DOM refs (available after HTML is parsed) ─────────────────
-  function getIndicatorDot()  { return document.getElementById('indicator-dot'); }
-  function getIndicatorText() { return document.getElementById('indicator-text'); }
-  function getDocTitle()      { return document.getElementById('doc-title'); }
-
-  // ── Mark as saving (yellow dot + animation) ───────────────────
-  function markSaving() {
-    const dot  = getIndicatorDot();
-    const text = getIndicatorText();
-    if (dot)  dot.className  = 'indicator-dot saving';
-    if (text) text.textContent = 'Saving…';
+  function status(label, state = '') {
+    const dot = document.getElementById('indicator-dot');
+    const text = document.getElementById('indicator-text');
+    if (dot) dot.className = 'indicator-dot ' + state;
+    if (text) text.textContent = label;
   }
 
-  // ── Mark as saved (green dot) ─────────────────────────────────
-  function markSaved() {
-    const dot  = getIndicatorDot();
-    const text = getIndicatorText();
-    if (dot)  dot.className  = 'indicator-dot';
-    if (text) text.textContent = 'Saved';
-    isDirty = false;
-  }
-
-  // ── Mark as unsaved (yellow dot, no animation) ────────────────
-  function markUnsaved() {
-    const dot  = getIndicatorDot();
-    const text = getIndicatorText();
-    if (dot)  dot.className  = 'indicator-dot saving';
-    if (text) text.textContent = 'Unsaved';
-    isDirty = true;
-  }
-
-  // ── Save to localStorage ──────────────────────────────────────
   function save() {
+    clearTimeout(timer);
     try {
-      const delta = window.quill.getContents();
-      const title = getDocTitle()?.value || 'Untitled Document';
-      localStorage.setItem(STORAGE_KEY_CONTENT, JSON.stringify(delta));
-      localStorage.setItem(STORAGE_KEY_TITLE, title);
-      markSaved();
-    } catch (e) {
-      console.warn('Auto-save failed:', e);
-      const dot  = getIndicatorDot();
-      const text = getIndicatorText();
-      if (dot)  dot.className  = 'indicator-dot error';
-      if (text) text.textContent = 'Save error';
-      if (e.name === 'QuotaExceededError') {
-        window.showToast?.(
-          'Document too large to auto-save — export it now to avoid losing content',
-          'error',
-          0
-        );
+      localStorage.setItem(KEY, JSON.stringify({
+        version: 1,
+        title: document.getElementById('doc-title')?.value || 'Untitled Document',
+        delta: window.quill.getContents(),
+        savedAt: Date.now(),
+      }));
+      dirty = false;
+      errorShown = false;
+      document.title = (document.getElementById('doc-title')?.value.trim() || 'Untitled Document') + ' — WordWeb';
+      status('Saved on this device');
+      return true;
+    } catch (error) {
+      dirty = true;
+      status('Not saved — export a copy', 'error');
+      if (!errorShown) {
+        window.showToast?.('This browser could not save your document. Export a copy to keep your work.', 'error', 7000);
+        errorShown = true;
       }
+      return false;
     }
   }
 
-  // ── Debounced save ─────────────────────────────────────────────
   function scheduleSave() {
-    markSaving();
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(save, DEBOUNCE_MS);
+    dirty = true;
+    status('Saving…', 'saving');
+    clearTimeout(timer);
+    timer = setTimeout(save, 1000);
   }
 
-  // ── Force-save immediately (Ctrl+S) ──────────────────────────
   function forceSave() {
-    clearTimeout(saveTimer);
-    save();
-    window.showToast('Document saved', 'success');
+    const saved = save();
+    if (saved) window.showToast?.('Document saved on this device', 'success');
+    return saved;
   }
 
-  // ── Restore last session from localStorage ───────────────────
   function restore() {
-    const raw   = localStorage.getItem(STORAGE_KEY_CONTENT);
-    const title = localStorage.getItem(STORAGE_KEY_TITLE);
-
-    if (!raw) return;
-
     try {
-      const delta = JSON.parse(raw);
-
-      // Only restore if there's actual content (not just an empty newline)
-      const hasContent = delta && delta.ops && delta.ops.some(op =>
-        typeof op.insert === 'string' && op.insert.trim().length > 0
-      );
-
-      if (!hasContent) return;
-
-      // Restore title
-      const titleInput = getDocTitle();
-      if (titleInput && title) titleInput.value = title;
-
-      // Restore content
-      window.quill.setContents(delta, 'silent');
-      window.quill.history.clear(); // don't let undo go back past restore
+      const raw = localStorage.getItem(KEY);
+      const legacy = raw ? null : localStorage.getItem('docpdf_content');
+      if (!raw && !legacy) { status('Ready to write'); return; }
+      const draft = raw ? JSON.parse(raw) : {
+        delta: JSON.parse(legacy), title: localStorage.getItem('docpdf_title'),
+      };
+      if (!draft.delta || !Array.isArray(draft.delta.ops) ||
+          draft.delta.ops.some(op => !op || !Object.prototype.hasOwnProperty.call(op, 'insert'))) {
+        throw new Error('Invalid saved document');
+      }
+      window.quill.setContents(draft.delta, 'silent');
+      const title = document.getElementById('doc-title');
+      if (title) title.value = draft.title || 'Untitled Document';
+      window.quill.history.clear();
       window.PagePagination?.refresh?.();
-      markSaved();
-
-      // 'silent' source above suppresses text-change listeners, so the
-      // status-bar word/char counter, the stats panel and the AI panel
-      // would all stay stuck at 0. Trigger downstream refreshes manually.
-      try { window.updateWordCount && window.updateWordCount(); } catch (_) {}
-      try { window.StatsPanel && window.StatsPanel.refresh && window.StatsPanel.refresh(); } catch (_) {}
-
-      window.showToast('Previous document restored', 'info');
-    } catch (e) {
-      console.warn('Restore failed:', e);
+      window.updateWordCount?.();
+      status('Saved on this device');
+      window.showToast?.('Previous document restored', 'info');
+    } catch (error) {
+      status('Restore unavailable', 'error');
+      window.showToast?.('Your saved draft could not be opened. Browser storage may be unavailable.', 'warning', 6000);
     }
   }
 
-  // ── Clear saved data ──────────────────────────────────────────
-  function clearStorage() {
-    localStorage.removeItem(STORAGE_KEY_CONTENT);
-    localStorage.removeItem(STORAGE_KEY_TITLE);
-    markSaved();
-  }
-
-  // ── Attach Quill listener ─────────────────────────────────────
   function init() {
-    window.quill.on('text-change', function (delta, oldDelta, source) {
-      if (source === 'user') scheduleSave();
-    });
-
-    // Title field changes
-    const titleInput = getDocTitle();
-    if (titleInput) {
-      titleInput.addEventListener('input', scheduleSave);
-    }
-
-    // Ctrl+S
-    document.addEventListener('doc:save', forceSave);
-
-    // Restore on load
     restore();
+    window.quill.on('text-change', (_delta, _old, source) => {
+      if (source !== 'silent') scheduleSave();
+    });
+    document.getElementById('doc-title')?.addEventListener('input', scheduleSave);
+    document.addEventListener('doc:save', forceSave);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && dirty) save();
+    });
+    window.addEventListener('pagehide', () => { if (dirty) save(); });
+    window.addEventListener('beforeunload', event => {
+      if (dirty && !save()) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    });
   }
 
-  // ── Public API ────────────────────────────────────────────────
-  window.AutoSave = { init, save: forceSave, clear: clearStorage, isDirty: () => isDirty };
+  // Callers reset the editor first; committing the empty draft also prevents
+  // older saved content from reappearing after a new document is created.
+  window.AutoSave = { init, save: forceSave, flush: save, clear: save, isDirty: () => dirty };
 })();

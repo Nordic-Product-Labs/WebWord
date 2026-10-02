@@ -23,7 +23,10 @@
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i> ${message}`;
+    const icon = document.createElement('i');
+    icon.className = `fas ${icons[type] || icons.info}`;
+    icon.setAttribute('aria-hidden', 'true');
+    toast.append(icon, document.createTextNode(' ' + message));
     container.appendChild(toast);
 
     if (duration > 0) {
@@ -188,11 +191,12 @@
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
     const btn = document.getElementById('theme-toggle');
     if (btn) btn.innerHTML = dark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
-    localStorage.setItem('docpdf_theme', dark ? 'dark' : 'light');
+    try { localStorage.setItem('docpdf_theme', dark ? 'dark' : 'light'); } catch (_) {}
   }
 
   function loadTheme() {
-    const saved = localStorage.getItem('docpdf_theme');
+    let saved;
+    try { saved = localStorage.getItem('docpdf_theme'); } catch (_) {}
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     setTheme(saved ? saved === 'dark' : prefersDark);
   }
@@ -210,6 +214,7 @@
   }
 
   function confirmNewDoc() {
+    window.FindReplace?.close();
     // Tear down any floating image toolbar bound to the doc we're about to replace
     hideImageTools();
     dragImageIndex = null;
@@ -805,6 +810,7 @@
     document.addEventListener('keydown', function (e) {
       // F11 = focus mode
       if (e.key === 'F11') { e.preventDefault(); toggleFocusMode(); return; }
+      if (e.key === 'Escape' && focusModeOn) { toggleFocusMode(); return; }
 
       if (!e.ctrlKey && !e.metaKey) return;
 

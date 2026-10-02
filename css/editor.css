@@ -9,6 +9,7 @@
 
 /* Remove all Quill Snow chrome */
 .ql-container.ql-snow {
+  height: auto;
   border: none !important;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 12pt;
@@ -21,6 +22,7 @@
 
 /* ─── Editor Surface ─────────────────────────────────────── */
 .ql-editor {
+  height: auto;
   padding: 0 !important;
   min-height: calc(var(--page-height) - (var(--page-padding) * 2));
   overflow: visible !important;

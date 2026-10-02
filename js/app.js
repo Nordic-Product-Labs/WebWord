@@ -20,6 +20,7 @@
 
     // 5. Stats/Analysis panel
     window.StatsPanel.init();
+    window.Usability.init();
 
     // 6. Focus the editor
     setTimeout(() => window.quill.focus(), 100);

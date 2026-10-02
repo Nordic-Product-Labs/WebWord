@@ -231,7 +231,8 @@
     // First-time-per-browser flag lives in localStorage so the banner
     // never nags returning users, even after full page reloads.
     const FIRSTRUN_KEY = 'docpdf_neural_model_ready';
-    const modelAlreadyReady = !!localStorage.getItem(FIRSTRUN_KEY) || window.LLMDetector.isReady();
+    let modelAlreadyReady = window.LLMDetector.isReady();
+    try { modelAlreadyReady = modelAlreadyReady || !!localStorage.getItem(FIRSTRUN_KEY); } catch (_) {}
 
     try {
       if (!window.LLMDetector.isReady()) {
