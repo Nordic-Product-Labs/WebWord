@@ -362,8 +362,8 @@ body {
       to bottom,
       var(--bg-page) 0,
       var(--bg-page) var(--page-height),
-      transparent var(--page-height),
-      transparent calc(var(--page-height) + var(--page-gap))
+      var(--bg-page) var(--page-height),
+      var(--bg-page) calc(var(--page-height) + var(--page-gap))
     );
 }
 
