@@ -14,9 +14,15 @@
 
   /* Reset page area layout */
   body {
+    height: auto !important;
+    overflow: visible !important;
     background: white !important;
     margin: 0;
     padding: 0;
+  }
+
+  .page-navigation, .page-markers, .stats-panel, .find-replace-bar, .help-dialog {
+    display: none !important;
   }
 
   .page-area {

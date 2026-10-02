@@ -292,8 +292,13 @@
     if (!canvas || !pageArea) return;
     const metrics = pageMetrics(canvas);
     const pageCount = Number(canvas.style.getPropertyValue('--page-count')) || 1;
-    const target = canvas.offsetTop + ((Math.max(1, Math.min(page, pageCount)) - 1) * (metrics.pageHeight + metrics.pageGap)) - 12;
-    pageArea.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+    const canvasRect = canvas.getBoundingClientRect();
+    const areaRect = pageArea.getBoundingClientRect();
+    const scale = canvasRect.width / canvas.offsetWidth || 1;
+    const target = pageArea.scrollTop + canvasRect.top - areaRect.top
+      + ((Math.max(1, Math.min(page, pageCount)) - 1) * (metrics.pageHeight + metrics.pageGap) * scale) - 12;
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
+    pageArea.scrollTo({ top: Math.max(0, target), behavior });
     setActivePage(page, pageCount);
   }
 
@@ -413,7 +418,9 @@
     if (!canvas || !pageArea) return;
     const metrics = pageMetrics(canvas);
     const pageCount = Number(canvas.style.getPropertyValue('--page-count')) || 1;
-    const viewportMiddle = pageArea.scrollTop + (pageArea.clientHeight * 0.4) - canvas.offsetTop;
+    const canvasRect = canvas.getBoundingClientRect();
+    const scale = canvasRect.width / canvas.offsetWidth || 1;
+    const viewportMiddle = (pageArea.getBoundingClientRect().top + (pageArea.clientHeight * 0.4) - canvasRect.top) / scale;
     setActivePage(Math.floor(Math.max(0, viewportMiddle) / (metrics.pageHeight + metrics.pageGap)) + 1, pageCount);
   }, { passive: true });
   schedulePaginationUpdate();

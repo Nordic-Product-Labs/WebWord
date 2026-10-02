@@ -121,6 +121,24 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   await run(`quill.setText(('A paragraph for pagination.\\n').repeat(80), 'user')`);
   await sleep(150);
   assert.ok(await run('Number(document.getElementById("page-canvas").style.getPropertyValue("--page-count")) > 1'));
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+  await sleep(150);
+  for (const zoom of ['1', '1.25']) {
+    await run(`document.getElementById('zoom-select').value='${zoom}'; document.getElementById('zoom-select').dispatchEvent(new Event('change'))`);
+    const point = await run(`(()=>{const r=document.querySelector('.page-thumbnail[data-page="2"]').getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+20};})()`);
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', clickCount: 1 });
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 });
+    await sleep(900);
+    assert.ok(await run('document.getElementById("page-area").scrollTop > 500'), 'Thumbnail actually scrolls document');
+    assert.equal(await run('document.getElementById("page-status").textContent.startsWith("Page 2 of")'), true);
+    assert.ok(await run(`(()=>{const marker=document.querySelectorAll('.page-marker')[1].getBoundingClientRect();const area=document.getElementById('page-area').getBoundingClientRect();return marker.top>=area.top && marker.top<area.top+80;})()`), 'Page 2 is visible below toolbar at selected zoom');
+    await run(`document.querySelector('.page-thumbnail[data-page="1"]').click()`);
+    await sleep(900);
+    assert.ok(await run('document.getElementById("page-area").scrollTop < 100'), 'Can return to page 1');
+  }
+  await run(`document.getElementById('zoom-select').value='1'; document.getElementById('zoom-select').dispatchEvent(new Event('change')); document.getElementById('page-next-btn').click()`);
+  await sleep(900);
+  assert.equal(await run('document.getElementById("page-status").textContent.startsWith("Page 2 of")'), true, 'Footer next page scrolls');
   await run(`window.beforeDelete=quill.getText(); window.confirm=()=>false; document.querySelector('.page-thumbnail-delete[data-page="2"]').click()`);
   assert.equal(await run('quill.getText() === window.beforeDelete'), true, 'Cancel preserves page');
   await run(`window.confirm=()=>true; document.querySelector('.page-thumbnail-delete[data-page="2"]').click()`);
