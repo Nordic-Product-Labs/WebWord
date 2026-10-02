@@ -42,9 +42,9 @@
   <script src="js/vendor/html2pdf.bundle.min.js"></script>
 
   <!-- App CSS -->
-  <link rel="stylesheet" href="css/theme.css?v=11">
-  <link rel="stylesheet" href="css/app.css?v=11">
-  <link rel="stylesheet" href="css/editor.css?v=11">
+  <link rel="stylesheet" href="css/theme.css?v=12">
+  <link rel="stylesheet" href="css/app.css?v=12">
+  <link rel="stylesheet" href="css/editor.css?v=12">
   <link rel="stylesheet" href="print.css" media="print">
 </head>
 <body>
@@ -476,6 +476,7 @@
         <button class="status-page-button" id="page-prev-btn" type="button" title="Previous page" aria-label="Previous page"><i class="fas fa-chevron-left"></i></button>
         <button class="status-page-current" id="page-status" type="button" title="Go to the current page">Page 1 of 1</button>
         <button class="status-page-button" id="page-next-btn" type="button" title="Next page" aria-label="Next page"><i class="fas fa-chevron-right"></i></button>
+        <button class="status-page-button status-page-delete" id="page-delete-btn" type="button" title="Delete current page" aria-label="Delete current page"><i class="fas fa-trash-alt"></i></button>
       </div>
       <span id="word-count">0 words</span>
       <span class="status-sep">·</span>
@@ -545,7 +546,7 @@
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
   <!-- ─── Scripts ─────────────────────────────────────────── -->
-  <script src="js/editor.js?v=11"></script>
+  <script src="js/editor.js?v=12"></script>
   <script src="js/analysis.js?v=10"></script>
   <script src="js/aidetect_llm.js?v=10"></script>
   <script src="js/autosave.js?v=10"></script>

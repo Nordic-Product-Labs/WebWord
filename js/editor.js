@@ -230,6 +230,14 @@
     const pitch = metrics.pageHeight + metrics.pageGap;
 
     for (let page = 1; page <= pageCount; page += 1) {
+      if (page > 1) {
+        const gutter = document.createElement('span');
+        gutter.className = 'page-gutter';
+        gutter.style.top = (((page - 1) * pitch) - metrics.pageGap) + 'px';
+        gutter.style.height = metrics.pageGap + 'px';
+        markerFragment.appendChild(gutter);
+      }
+
       const marker = document.createElement('span');
       marker.className = 'page-marker';
       marker.style.top = (12 + ((page - 1) * pitch)) + 'px';
@@ -255,8 +263,10 @@
     if (label) label.textContent = 'Page ' + activePage + ' of ' + pageCount;
     const prev = document.getElementById('page-prev-btn');
     const next = document.getElementById('page-next-btn');
+    const remove = document.getElementById('page-delete-btn');
     if (prev) prev.disabled = activePage <= 1;
     if (next) next.disabled = activePage >= pageCount;
+    if (remove) remove.disabled = pageCount <= 1;
     document.querySelectorAll('.page-thumbnail').forEach(function (thumb) {
       const isActive = Number(thumb.dataset.page) === activePage;
       thumb.classList.toggle('active', isActive);
@@ -274,6 +284,49 @@
     const target = canvas.offsetTop + ((Math.max(1, Math.min(page, pageCount)) - 1) * (metrics.pageHeight + metrics.pageGap)) - 12;
     pageArea.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
     setActivePage(page, pageCount);
+  }
+
+  function getPageRange(page) {
+    const canvas = document.getElementById('page-canvas');
+    if (!canvas) return null;
+    const metrics = pageMetrics(canvas);
+    const pitch = metrics.pageHeight + metrics.pageGap;
+    let start = null;
+    let end = null;
+
+    quill.getLines().forEach(function (line) {
+      const index = quill.getIndex(line);
+      const bounds = quill.getBounds(index);
+      if (Math.floor(bounds.top / pitch) + 1 !== page) return;
+      if (start === null) start = index;
+      end = index + line.length();
+    });
+
+    return start === null ? null : { start, end };
+  }
+
+  function deletePage(page) {
+    const canvas = document.getElementById('page-canvas');
+    if (!canvas) return;
+    const pageCount = Number(canvas.style.getPropertyValue('--page-count')) || 1;
+    if (pageCount <= 1) {
+      window.showToast('The document must keep one page', 'info');
+      return;
+    }
+
+    const range = getPageRange(page);
+    if (!range || range.end <= range.start) {
+      window.showToast('This automatic page has no separate content to remove', 'info');
+      return;
+    }
+
+    const text = quill.getText(range.start, range.end - range.start).trim();
+    if (text && !window.confirm('Delete all content on page ' + page + '? You can undo this with Ctrl+Z.')) return;
+
+    quill.deleteText(range.start, range.end - range.start, 'user');
+    quill.setSelection(Math.min(range.start, quill.getLength() - 1), 0, 'silent');
+    schedulePaginationUpdate();
+    window.showToast(text ? 'Page ' + page + ' deleted' : 'Blank page removed', 'success');
   }
 
   function updatePagination() {
@@ -338,6 +391,7 @@
   document.getElementById('page-prev-btn')?.addEventListener('click', function () { goToPage(activePage - 1); });
   document.getElementById('page-next-btn')?.addEventListener('click', function () { goToPage(activePage + 1); });
   document.getElementById('page-status')?.addEventListener('click', function () { goToPage(activePage); });
+  document.getElementById('page-delete-btn')?.addEventListener('click', function () { deletePage(activePage); });
   document.getElementById('page-area')?.addEventListener('scroll', function () {
     const canvas = document.getElementById('page-canvas');
     const pageArea = document.getElementById('page-area');
@@ -354,6 +408,7 @@
   window.PagePagination = {
     refresh: schedulePaginationUpdate,
     goToPage,
+    deletePage,
     clearFlow: function () { resetPageFlow(quill.root); },
   };
 })();
