@@ -339,15 +339,55 @@ body {
 }
 
 .page-canvas {
-  background: var(--bg-page);
+  --page-count: 1;
   width: var(--page-width);
-  min-height: calc(297mm);
+  min-height: var(--page-height);
   border-radius: 3px;
-  box-shadow: var(--shadow-page);
+  box-shadow: none;
   padding: var(--page-padding);
   transition: background 0.2s, box-shadow 0.2s;
   transform-origin: top center;
   position: relative;
+  overflow: hidden;
+}
+
+.page-canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      var(--bg-page) 0,
+      var(--bg-page) var(--page-height),
+      transparent var(--page-height),
+      transparent calc(var(--page-height) + var(--page-gap))
+    );
+}
+
+.page-canvas::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--page-height) - 1px),
+      var(--border) calc(var(--page-height) - 1px),
+      var(--border) var(--page-height),
+      transparent var(--page-height),
+      transparent calc(var(--page-height) + var(--page-gap))
+    );
+}
+
+#editor-container {
+  position: relative;
+  z-index: 1;
 }
 
 /* ─── Status Bar ──────────────────────────────────────────── */

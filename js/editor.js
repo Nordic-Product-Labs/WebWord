@@ -146,6 +146,50 @@
   quill.root.style.fontFamily = 'Inter, sans-serif';
   quill.root.style.lineHeight = '1.7';
 
+  let paginationFrame = null;
+
+  function parsePx(value, fallback) {
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function updatePagination() {
+    const canvas = document.getElementById('page-canvas');
+    const editor = quill.root;
+    if (!canvas || !editor) return;
+
+    const styles = window.getComputedStyle(canvas);
+    const pageHeight = parsePx(styles.getPropertyValue('--page-height'), 1123);
+    const pageGap = parsePx(styles.getPropertyValue('--page-gap'), 28);
+    const paddingTop = parsePx(styles.paddingTop, 0);
+    const paddingBottom = parsePx(styles.paddingBottom, 0);
+    const contentHeightPerPage = Math.max(1, pageHeight - paddingTop - paddingBottom);
+    const contentHeight = Math.max(editor.scrollHeight, contentHeightPerPage);
+
+    const pageCount = Math.max(1, Math.ceil(contentHeight / contentHeightPerPage));
+    const canvasHeight = (pageCount * pageHeight) + ((pageCount - 1) * pageGap);
+
+    canvas.style.setProperty('--page-count', String(pageCount));
+    canvas.style.minHeight = canvasHeight + 'px';
+  }
+
+  function schedulePaginationUpdate() {
+    if (paginationFrame != null) cancelAnimationFrame(paginationFrame);
+    paginationFrame = requestAnimationFrame(function () {
+      paginationFrame = null;
+      updatePagination();
+    });
+  }
+
+  quill.on('text-change', schedulePaginationUpdate);
+  window.addEventListener('resize', schedulePaginationUpdate);
+  quill.root.addEventListener('load', function (event) {
+    if (event.target && event.target.tagName === 'IMG') schedulePaginationUpdate();
+  }, true);
+  quill.root.addEventListener('paste', schedulePaginationUpdate);
+  schedulePaginationUpdate();
+
   // Expose globally so other modules can access
   window.quill = quill;
+  window.PagePagination = { refresh: schedulePaginationUpdate };
 })();

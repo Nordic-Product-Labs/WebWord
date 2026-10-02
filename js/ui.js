@@ -217,6 +217,7 @@
 
     window.quill.setContents([], 'silent');
     window.quill.history.clear();
+    window.PagePagination?.refresh?.();
     const titleInput = document.getElementById('doc-title');
     if (titleInput) titleInput.value = 'Untitled Document';
     window.AutoSave.clear();
