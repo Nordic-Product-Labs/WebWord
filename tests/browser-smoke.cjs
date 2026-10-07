@@ -121,6 +121,10 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   await run(`quill.setText(('A paragraph for pagination.\\n').repeat(80), 'user')`);
   await sleep(150);
   assert.ok(await run('Number(document.getElementById("page-canvas").style.getPropertyValue("--page-count")) > 1'));
+  await run(`quill.setText('A long pasted paragraph '.repeat(180), 'user')`);
+  await sleep(150);
+  assert.ok(await run('Number(document.getElementById("page-canvas").style.getPropertyValue("--page-count")) > 1'), 'Long paragraph paginates');
+  assert.equal(await run('quill.root.firstElementChild.style.paddingTop'), '', 'Long paragraph flows without page spacer');
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
   await sleep(150);
   for (const zoom of ['1', '1.25']) {

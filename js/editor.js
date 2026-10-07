@@ -202,13 +202,24 @@
       const top = block.offsetTop;
       const height = block.offsetHeight + parsePx(computed.marginBottom, 0);
 
-      // Very tall blocks (for example a large image or a long paragraph) remain
-      // breakable. Normal blocks move as a unit, matching "keep lines together"
-      // behavior and keeping the caret out of the page gutter.
       while (top >= pageEnd) {
         currentPage += 1;
         pageEnd = (currentPage * pitch) + metrics.contentHeight;
       }
+
+      // Prose must flow through the remaining page space. Moving a paragraph
+      // as one unit creates large blank areas and makes pasted text appear to
+      // jump to the next page.
+      const isBreakable = block.tagName === 'P'
+        || block.tagName === 'LI'
+        || block.tagName === 'BLOCKQUOTE';
+      if (isBreakable) {
+        pageEnd = Math.max(pageEnd, top + height);
+        return;
+      }
+
+      // Keep compact structural blocks together when possible. Oversized
+      // blocks remain breakable because no page can contain them whole.
       if (top + height <= pageEnd || height > metrics.contentHeight) return;
 
       currentPage += 1;
@@ -307,18 +318,25 @@
     if (!canvas) return null;
     const metrics = pageMetrics(canvas);
     const pitch = metrics.pageHeight + metrics.pageGap;
-    let start = null;
-    let end = null;
+    const length = quill.getLength();
+    const pageAt = function (index) {
+      const bounds = quill.getBounds(Math.max(0, Math.min(index, length - 1)));
+      return Math.floor(Math.max(0, bounds.top) / pitch) + 1;
+    };
+    const firstIndexAtPage = function (targetPage) {
+      let low = 0;
+      let high = length;
+      while (low < high) {
+        const middle = Math.floor((low + high) / 2);
+        if (pageAt(middle) < targetPage) low = middle + 1;
+        else high = middle;
+      }
+      return low;
+    };
 
-    quill.getLines().forEach(function (line) {
-      const index = quill.getIndex(line);
-      const bounds = quill.getBounds(index);
-      if (Math.floor(bounds.top / pitch) + 1 !== page) return;
-      if (start === null) start = index;
-      end = index + line.length();
-    });
-
-    return start === null ? null : { start, end };
+    const start = firstIndexAtPage(page);
+    const end = firstIndexAtPage(page + 1);
+    return start < end ? { start, end } : null;
   }
 
   function deletePage(page) {

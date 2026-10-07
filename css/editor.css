@@ -29,6 +29,7 @@
   color: var(--text-primary);
   caret-color: var(--accent);
   word-break: break-word;
+  overflow-wrap: anywhere;
   outline: none;
   tab-size: 4;
   white-space: pre-wrap;
@@ -57,6 +58,9 @@
 .ql-editor p {
   margin-bottom: 0.5em;
   line-height: 1.7;
+  break-inside: auto;
+  orphans: 2;
+  widows: 2;
 }
 
 /* ─── Headings ───────────────────────────────────────────── */
