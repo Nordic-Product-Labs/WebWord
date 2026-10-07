@@ -125,6 +125,9 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   await sleep(150);
   assert.ok(await run('Number(document.getElementById("page-canvas").style.getPropertyValue("--page-count")) > 1'), 'Long paragraph paginates');
   assert.equal(await run('quill.root.firstElementChild.style.paddingTop'), '', 'Long paragraph flows without page spacer');
+  await run(`quill.setText('Start' + '\\n'.repeat(90), 'user'); quill.setSelection(quill.getLength() - 1, 0, 'silent')`);
+  await sleep(150);
+  assert.ok(await run(`(()=>{const canvas=document.getElementById('page-canvas');const s=getComputedStyle(canvas);const h=parseFloat(s.getPropertyValue('--page-height'));const gap=parseFloat(s.getPropertyValue('--page-gap'));const b=quill.getBounds(quill.getSelection().index);return (b.top % (h + gap)) <= h;})()`), 'Caret skips page gutter');
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
   await sleep(150);
   for (const zoom of ['1', '1.25']) {

@@ -210,9 +210,10 @@
       // Prose must flow through the remaining page space. Moving a paragraph
       // as one unit creates large blank areas and makes pasted text appear to
       // jump to the next page.
-      const isBreakable = block.tagName === 'P'
+      const isBlankBlock = block.textContent.trim() === '';
+      const isBreakable = !isBlankBlock && (block.tagName === 'P'
         || block.tagName === 'LI'
-        || block.tagName === 'BLOCKQUOTE';
+        || block.tagName === 'BLOCKQUOTE');
       if (isBreakable) {
         pageEnd = Math.max(pageEnd, top + height);
         return;
